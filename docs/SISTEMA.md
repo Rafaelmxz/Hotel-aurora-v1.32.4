@@ -1,6 +1,6 @@
 # Hotel Aurora PMS — descrição do sistema (v1.32.4)
 
-Documento de produto e lógica. Complementa [ARQUITETURA.md](./ARQUITETURA.md) (pastas e fluxo técnico) e [FASE-0.md](./FASE-0.md) (combinado de recortes).
+Documento de produto e lógica. Complementa [ARQUITETURA.md](./ARQUITETURA.md) (pastas), [FASE-0.md](./FASE-0.md) (combinado), [INDICE.md](./INDICE.md) (feito/falta) e [MAPA-ARQUITETURA.md](./MAPA-ARQUITETURA.md) (onde editar).
 
 ## 1. O que é
 

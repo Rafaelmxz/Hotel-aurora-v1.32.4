@@ -1,6 +1,8 @@
-# Fase 0 — Combinado e recorte (Hotel Aurora v1.25.0)
+# Fase 0 — Combinado e recorte (Hotel Aurora v1.32.4)
 
-Chão desta conversa: o produto **v1.25.0**. Nada da conversa antiga conta. Não misturar visual, banco e pastas no mesmo recorte.
+Chão desta conversa: o produto **v1.32.4**. Nada da conversa antiga conta. Não misturar visual, banco e pastas no mesmo recorte.
+
+**Antes de qualquer recorte:** [INDICE.md](./INDICE.md) (feito/falta) → [MAPA-ARQUITETURA.md](./MAPA-ARQUITETURA.md) (onde editar) → [AGENTS.project.md](../AGENTS.project.md) (regras).
 
 ## Congelado (não reinventar)
 
@@ -68,12 +70,13 @@ Ideia extra vai para cá. Não entra no recorte aberto.
 
 ## Como executar sem misturar
 
-1. Uma frase: “executa a Fase N”
-2. Dizer o que toca e o que não toca
-3. Mudar só aquilo
+1. Uma frase: “executa o recorte X” (um item `[ ]` do índice)
+2. Dizer o que toca e o que não toca (5–8 linhas neste arquivo)
+3. Abrir no máximo 3 arquivos do mapa; mudar só aquilo
 4. Rodar o teste de ouro
-5. Extra → lista “depois”
+5. Extra → seção C do índice (não vira `// TODO` no código)
+6. Marcar `[x]` no índice; se a tela mudou, patch em `src/lib/version.ts`
 
-**Estado:** Fase 0 travada · Fase 1–6 feitas · extra e-mail do voucher (v1.30.0) · extra **Pix QR** (v1.31.0) · correção site→mapa (v1.31.1) · mapa sem barras atravessadas (v1.31.2) · extra **adicionais no site** (v1.32.0) · extra **Experiências na vitrine** (v1.32.1) · extra **clique na pré-reserva abre o mapa nela** (v1.32.2) · aviso de pedidos sem faixa (v1.32.3) · tabela de pré-reservas no mapa (v1.32.4). Fase 7 continua fora.
+**Estado:** Fase 0 travada · Fase 1–6 feitas · extra e-mail do voucher (v1.30.0) · extra **Pix QR** (v1.31.0) · correção site→mapa (v1.31.1) · mapa sem barras atravessadas (v1.31.2) · extra **adicionais no site** (v1.32.0) · extra **Experiências na vitrine** (v1.32.1) · extra **clique na pré-reserva abre o mapa nela** (v1.32.2) · aviso de pedidos sem faixa (v1.32.3) · tabela de pré-reservas no mapa (v1.32.4) · **regras de recorte** (índice + mapa + AGENTS.project.md). Fase 7 continua fora.
 
-**Próximo recorte recomendado:** extra da lista “depois”. Fase 7 permanece fora.
+**Próximo recorte recomendado:** um item da seção C de [INDICE.md](./INDICE.md). Fase 7 permanece fora.

@@ -6,6 +6,13 @@ Esta versão é um **protótipo funcional** do PMS: fluxo de hospedagem congelad
 
 **Descrição do sistema (resumo, arquitetura e lógica):** [docs/SISTEMA.md](docs/SISTEMA.md)
 
+Índice (feito / falta): [docs/INDICE.md](docs/INDICE.md)
+
+Onde cada assunto mora: [docs/MAPA-ARQUITETURA.md](docs/MAPA-ARQUITETURA.md)
+
+Regras de recorte (obrigatórias): [AGENTS.project.md](AGENTS.project.md)
+
+
 Repositório desta versão: [Rafaelmxz/Hotel-aurora-v1.32.4](https://github.com/Rafaelmxz/Hotel-aurora-v1.32.4)
 
 
