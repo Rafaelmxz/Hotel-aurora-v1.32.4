@@ -13,6 +13,8 @@ import { guestKeys } from "@/features/guests/guestStore";
 import type { Reservation, ReservationStatus } from "@/mocks/hotelData";
 import { ensureVaultRestored, persistVault, restoreVault, detectVaultMode } from "@/lib/hotel/hydrate";
 import { assertStayTransition } from "@/lib/hotel/rules";
+import { listBlocks } from "./blockStore";
+import { listSaleCloses } from "./saleCloseStore";
 
 export function useReservations() {
   return useQuery({
@@ -68,6 +70,8 @@ export function usePatchReservation() {
         reservations: listReservations(),
         rooms: listRooms(),
         saldo: getFolio(id).totais.saldo,
+        blocks: listBlocks(),
+        saleCloses: listSaleCloses(),
       });
       const updated = patchReservation(id, patch);
       if (current.status !== "check-out" && updated.status === "check-out") {
@@ -94,6 +98,11 @@ export function useCreateReservation() {
       status?: ReservationStatus;
       origin?: string;
       allowOverbooking?: boolean;
+      guests?: number;
+      adults?: number;
+      children?: number;
+      guestPhone?: string;
+      holdUntil?: string;
     }) => createReservation(input),
     onSuccess: async (created) => {
       await queryClient.invalidateQueries({ queryKey: guestKeys.all });
@@ -113,6 +122,8 @@ export function useCreatePublicReservation() {
       checkOut: string;
       notes?: string;
       guests?: number;
+      adults?: number;
+      children?: number;
       payMode?: "pix" | "checkin";
       extras?: Array<{
         id: string;
@@ -135,8 +146,11 @@ export function useCreatePublicReservation() {
         checkOut: input.checkOut,
         notes: input.notes,
         guests: input.guests,
+        adults: input.adults,
+        children: input.children,
         status: autoConfirm ? "confirmada" : "pendente",
         origin: "Link público",
+        pix: input.payMode === "pix",
       });
       const extraItems = (input.extras ?? [])
         .filter((line) => line.quantity > 0 && line.unitPrice >= 0)

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { bookingKeys } from "@/features/direct-booking/bookingStore";
+import { bookingKeys, getBookingConfig } from "@/features/direct-booking/bookingStore";
 import { persistVault } from "@/lib/hotel/hydrate";
 import {
   getProperty,
@@ -24,7 +24,9 @@ export function useSaveProperty() {
       await persistVault();
       return saved;
     },
-    onSuccess: async () => {
+    onSuccess: async (saved) => {
+      queryClient.setQueryData(propertyKeys.current, saved);
+      queryClient.setQueryData(bookingKeys.config, getBookingConfig());
       await queryClient.invalidateQueries({ queryKey: propertyKeys.current });
       await queryClient.invalidateQueries({ queryKey: bookingKeys.config });
     },

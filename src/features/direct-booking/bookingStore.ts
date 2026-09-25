@@ -116,6 +116,7 @@ export function getBookingConfig(): BookingEngineConfig {
     checkOutTime: property.checkOutTime,
     pixKey: property.pixKey,
     depositPercent: property.depositPercent,
+    cancellationPolicy: property.cancellationPolicy,
   };
 }
 

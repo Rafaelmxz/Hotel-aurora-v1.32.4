@@ -56,6 +56,7 @@ const PATH_PERMISSION: Array<{ prefix: string; permission: Permission | null }> 
   { prefix: "/ocupacao", permission: "calendar" },
   { prefix: "/reservas", permission: "calendar" },
   { prefix: "/ofertas", permission: "rates" },
+  { prefix: "/casa", permission: "calendar" },
   { prefix: "/governanca", permission: "housekeeping" },
   { prefix: "/caixa", permission: "cash" },
   { prefix: "/tarifas", permission: "rates" },

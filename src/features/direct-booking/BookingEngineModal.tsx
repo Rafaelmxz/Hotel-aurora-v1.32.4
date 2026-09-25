@@ -19,9 +19,6 @@ export function BookingEngineModal({
   const { data: config } = useBookingConfig();
   const save = useSaveBookingConfig();
   const [photos, setPhotos] = useState(config.photos.join("\n"));
-  const [policy, setPolicy] = useState(config.cancellationPolicy);
-  const [checkInTime, setCheckInTime] = useState(config.checkInTime);
-  const [checkOutTime, setCheckOutTime] = useState(config.checkOutTime);
   const [pixKey, setPixKey] = useState(config.pixKey);
   const [deposit, setDeposit] = useState(String(config.depositPercent));
   const [extras, setExtras] = useState<BookingExtra[]>(() => normalizeExtras(config.extras));
@@ -29,9 +26,6 @@ export function BookingEngineModal({
   useEffect(() => {
     if (!open) return;
     setPhotos(config.photos.join("\n"));
-    setPolicy(config.cancellationPolicy);
-    setCheckInTime(config.checkInTime);
-    setCheckOutTime(config.checkOutTime);
     setPixKey(config.pixKey);
     setDeposit(String(config.depositPercent));
     setExtras(normalizeExtras(config.extras));
@@ -41,10 +35,8 @@ export function BookingEngineModal({
     event.preventDefault();
     try {
       await save.mutateAsync({
+        ...config,
         photos: photos.split("\n"),
-        cancellationPolicy: policy,
-        checkInTime,
-        checkOutTime,
         pixKey,
         depositPercent: Number(deposit) || 0,
         extras: normalizeExtras(extras),
@@ -71,7 +63,7 @@ export function BookingEngineModal({
             Configurar página pública
           </DialogPrimitive.Title>
           <DialogPrimitive.Description className="mt-1 text-sm text-muted-foreground">
-            Fotos, política, horários, Pix e experiências da reserva.
+            Fotos, Pix e experiências da reserva. Horários e cancelamento ficam em Hotel.
           </DialogPrimitive.Description>
           <DialogPrimitive.Close className="absolute top-4 right-4 opacity-70 hover:opacity-100">
             <X className="size-4" />
@@ -82,20 +74,10 @@ export function BookingEngineModal({
               <Label htmlFor="photos">Fotos (uma URL por linha)</Label>
               <Textarea id="photos" rows={4} value={photos} onChange={(event) => setPhotos(event.target.value)} />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="policy">Política de cancelamento</Label>
-              <Textarea id="policy" value={policy} onChange={(event) => setPolicy(event.target.value)} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-2">
-                <Label>Check-in</Label>
-                <Input type="time" value={checkInTime} onChange={(event) => setCheckInTime(event.target.value)} />
-              </div>
-              <div className="grid gap-2">
-                <Label>Check-out</Label>
-                <Input type="time" value={checkOutTime} onChange={(event) => setCheckOutTime(event.target.value)} />
-              </div>
-            </div>
+            <p className="rounded-lg bg-secondary/50 px-3 py-2 text-xs text-muted-foreground">
+              Check-in {config.checkInTime} · check-out {config.checkOutTime}. {config.cancellationPolicy}{" "}
+              Alterar em Hotel.
+            </p>
             <div className="grid gap-2">
               <Label>Chave Pix</Label>
               <Input value={pixKey} onChange={(event) => setPixKey(event.target.value)} />

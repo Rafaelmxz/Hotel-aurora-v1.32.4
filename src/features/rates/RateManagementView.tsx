@@ -5,12 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { addDays, addMonths, eachDayOfInterval, format, startOfMonth, startOfWeek } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   formatCurrency,
+  parseISODate,
   TODAY_ISO,
+  toISODate,
   type RoomType,
 } from "@/mocks/hotelData";
-import { quoteStay } from "./pricing";
+import { paintNight, quoteStay } from "./pricing";
 import { OffersView } from "./OffersView";
 import { PackagesView } from "./PackagesView";
 import { PromoCodesView } from "./PromoCodesView";
@@ -21,21 +26,14 @@ import {
   useRemoveSeason,
   useSeasons,
 } from "./useRates";
-import type { MealPlan, PaxCount, RateBand, SeasonModifier } from "./rateStore";
+import { useRoomTypes } from "@/features/rooms/useRoomTypes";
+import { typeHoldsParty } from "@/features/rooms/roomTypeStore";
+import { saleCloseOnNight } from "@/features/reservations/overbooking";
+import { useCreateSaleClose, useRemoveSaleClose, useSaleCloses } from "@/features/reservations/useSaleCloses";
+import { fillBand, OCCUPANCY_FIELDS, OCCUPANCY_LABEL, clampSitePercent } from "./rateStore";
+import type { OccupancyField, RateBand, RateSegment, SeasonModifier } from "./rateStore";
 
 const ROOM_TYPES: RoomType[] = ["Standard", "Luxo", "Suíte"];
-const BAND_FIELDS: Array<keyof RateBand> = [
-  "pax1Cafe",
-  "pax1Pensao",
-  "pax2Cafe",
-  "pax2Pensao",
-];
-const BAND_LABEL: Record<keyof RateBand, string> = {
-  pax1Cafe: "1 pax · café",
-  pax1Pensao: "1 pax · pensão",
-  pax2Cafe: "2 pax · café",
-  pax2Pensao: "2 pax · pensão",
-};
 
 type TabId = "tarifas" | "pacotes" | "cupons" | "ofertas";
 
@@ -59,6 +57,10 @@ export function RateManagementView() {
   const [tab, setTab] = useState<TabId>(() => abaFromSearch(aba));
   const { data: categories = [] } = useCategoryRates();
   const { data: seasons = [] } = useSeasons();
+  const { data: roomTypes = [] } = useRoomTypes();
+  const { data: saleCloses = [] } = useSaleCloses();
+  const createClose = useCreateSaleClose();
+  const removeClose = useRemoveSaleClose();
   const patchRate = usePatchCategoryRate();
   const addSeason = useAddSeason();
   const removeSeason = useRemoveSeason();
@@ -83,15 +85,64 @@ export function RateManagementView() {
 
   const [quoteType, setQuoteType] = useState<RoomType>("Standard");
   const [quoteIn, setQuoteIn] = useState(TODAY_ISO);
-  const [quoteOut, setQuoteOut] = useState(TODAY_ISO);
-  const [quotePax, setQuotePax] = useState<PaxCount>(2);
-  const [quoteMeal, setQuoteMeal] = useState<MealPlan>("cafe");
+  const [quoteOut, setQuoteOut] = useState(() => toISODate(addDays(parseISODate(TODAY_ISO), 1)));
+  const [quotePax, setQuotePax] = useState(2);
+  const [quoteChildren, setQuoteChildren] = useState(0);
   const [quotePromo, setQuotePromo] = useState("");
-  const quote = quoteStay(quoteType, quoteIn, quoteOut || quoteIn, {
-    pax: quotePax,
-    mealPlan: quoteMeal,
+  const [quoteSegment, setQuoteSegment] = useState<RateSegment>("balcao");
+  const [siteDraft, setSiteDraft] = useState<Partial<Record<RoomType, number>> | null>(null);
+  const siteOf = (type: RoomType) =>
+    siteDraft?.[type] ?? categories.find((row) => row.type === type)?.sitePercent ?? 0;
+  const liveCategories = useMemo(
+    () =>
+      ROOM_TYPES.map((type) => {
+        const weekday = fillBand(matrix[`${type}-weekday`]);
+        const weekend = fillBand(matrix[`${type}-weekend`]);
+        return {
+          type,
+          weekday,
+          weekend,
+          weekdayRate: weekday.adl2,
+          weekendRate: weekend.adl2,
+          sitePercent: siteOf(type),
+        };
+      }),
+    [matrix, siteDraft, categories],
+  );
+  const quoteOutSafe = quoteOut > quoteIn ? quoteOut : toISODate(addDays(parseISODate(quoteIn), 1));
+  const quote = quoteStay(quoteType, quoteIn, quoteOutSafe, {
+    adults: quotePax,
+    children: quoteChildren,
     promoCode: quotePromo || undefined,
+    segment: quoteSegment,
+    categories: liveCategories,
   });
+  const [monthCursor, setMonthCursor] = useState(() => startOfMonth(parseISODate(TODAY_ISO)));
+  const [paintMode, setPaintMode] = useState<"simular" | "fechar">("simular");
+  const monthDays = useMemo(() => {
+    const start = startOfWeek(startOfMonth(monthCursor), { weekStartsOn: 1 });
+    const end = addDays(start, 41);
+    return eachDayOfInterval({ start, end });
+  }, [monthCursor]);
+  const monthPaints = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof paintNight>>();
+    for (const day of monthDays) {
+      const iso = toISODate(day);
+      map.set(
+        iso,
+        paintNight(quoteType, iso, {
+          adults: quotePax,
+          children: quoteChildren,
+          categories: liveCategories,
+          seasons,
+        }),
+      );
+    }
+    return map;
+  }, [monthDays, quoteType, quotePax, quoteChildren, liveCategories, seasons]);
+  const firstNight = quote.nightsDetail[0];
+  const quoteProfile = roomTypes.find((row) => row.type === quoteType);
+  const quoteFits = quoteProfile ? typeHoldsParty(quoteProfile, quotePax, quoteChildren) : true;
 
   useEffect(() => {
     setTab(abaFromSearch(aba));
@@ -102,17 +153,37 @@ export function RateManagementView() {
     void navigate({ search: { aba: id === "tarifas" ? undefined : id } });
   }
 
-  function updateBand(key: string, field: keyof RateBand, value: string) {
-    const current = matrix[key] ?? {
-      pax1Cafe: 0,
-      pax1Pensao: 0,
-      pax2Cafe: 0,
-      pax2Pensao: 0,
-    };
+  function updateBand(key: string, field: OccupancyField, value: string) {
+    const current = fillBand(matrix[key]);
     setDraft({
       ...matrix,
       [key]: { ...current, [field]: Number(value) || 0 },
     });
+  }
+
+  async function onCalendarDay(iso: string, day: Date) {
+    if (paintMode === "simular") {
+      setQuoteIn(iso);
+      setQuoteOut(toISODate(addDays(day, 1)));
+      return;
+    }
+    const hit = saleCloseOnNight(saleCloses, quoteType, iso);
+    try {
+      if (hit) {
+        await removeClose.mutateAsync(hit.id);
+        toast.success(`Venda reaberta · ${quoteType} ${iso}`);
+        return;
+      }
+      await createClose.mutateAsync({
+        roomType: quoteType,
+        checkIn: iso,
+        checkOut: toISODate(addDays(day, 1)),
+        reason: "Fechado no tarifário",
+      });
+      toast.success(`Venda fechada · ${quoteType} ${iso}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível alterar a venda.");
+    }
   }
 
   async function saveRates() {
@@ -122,10 +193,12 @@ export function RateManagementView() {
           type,
           weekday: matrix[`${type}-weekday`],
           weekend: matrix[`${type}-weekend`],
+          sitePercent: siteOf(type),
         });
       }
       setDraft(undefined);
-      toast.success("Tarifas atualizadas · reservas abertas recalculadas");
+      setSiteDraft(null);
+      toast.success("Tarifas atualizadas · reservas já feitas mantêm o preço");
     } catch {
       toast.error("Não foi possível salvar as tarifas.");
     }
@@ -186,14 +259,14 @@ export function RateManagementView() {
       {tab === "tarifas" ? (
         <>
           <section className="overflow-x-auto rounded-xl bg-card shadow-[var(--shadow-border)]">
-            <table className="w-full min-w-[44rem] text-left text-sm">
+            <table className="w-full min-w-[60rem] text-left text-sm">
               <thead className="bg-secondary text-xs tracking-wide text-muted-foreground uppercase">
                 <tr>
                   <th className="px-4 py-3 font-medium">Categoria</th>
                   <th className="px-4 py-3 font-medium">Período</th>
-                  {BAND_FIELDS.map((field) => (
+                  {OCCUPANCY_FIELDS.map((field) => (
                     <th key={field} className="px-4 py-3 font-medium">
-                      {BAND_LABEL[field]}
+                      {OCCUPANCY_LABEL[field]}
                     </th>
                   ))}
                 </tr>
@@ -209,7 +282,7 @@ export function RateManagementView() {
                         <td className="px-4 py-3 text-muted-foreground">
                           {period === "weekday" ? "Seg–Qui" : "Sex–Dom"}
                         </td>
-                        {BAND_FIELDS.map((field) => (
+                        {OCCUPANCY_FIELDS.map((field) => (
                           <td key={field} className="px-4 py-3">
                             <Input
                               inputMode="numeric"
@@ -231,6 +304,172 @@ export function RateManagementView() {
                 Salvar tarifas
               </Button>
             </div>
+          </section>
+
+          <section className="rounded-xl bg-card p-5 shadow-[var(--shadow-border)]">
+            <h2 className="font-display text-xl font-medium tracking-tight">Diária do site</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              A grelha é o balcão. No site, aplique desconto ou acréscimo sobre essa diária. 0 = igual.
+            </p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              {ROOM_TYPES.map((type) => {
+                const signed = siteOf(type);
+                const mode = signed < 0 ? "desconto" : "acrescimo";
+                const amount = Math.abs(signed);
+                const write = (nextMode: "desconto" | "acrescimo", nextAmount: number) => {
+                  const percent = nextMode === "desconto" ? -Math.abs(nextAmount) : Math.abs(nextAmount);
+                  setSiteDraft({
+                    Standard: siteOf("Standard"),
+                    Luxo: siteOf("Luxo"),
+                    Suíte: siteOf("Suíte"),
+                    [type]: clampSitePercent(percent),
+                  });
+                };
+                return (
+                  <div key={type} className="grid gap-2">
+                    <Label>{type}</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        variant={mode === "desconto" ? "default" : "outline"}
+                        onClick={() => write("desconto", amount)}
+                      >
+                        Desconto
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={mode === "acrescimo" ? "default" : "outline"}
+                        onClick={() => write("acrescimo", amount)}
+                      >
+                        Acréscimo
+                      </Button>
+                    </div>
+                    <Input
+                      inputMode="numeric"
+                      value={String(amount)}
+                      onChange={(event) => {
+                        const raw = event.target.value.replace(/\D/g, "");
+                        write(mode, clampSitePercent(raw === "" ? 0 : raw));
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {amount === 0
+                        ? "Site igual ao balcão"
+                        : mode === "desconto"
+                          ? `Site ${amount}% mais barato`
+                          : `Site ${amount}% mais caro`}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="rounded-xl bg-card p-5 shadow-[var(--shadow-border)]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="font-display text-xl font-medium tracking-tight">
+                Calendário · {quoteType}
+              </h2>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="size-9"
+                  aria-label="Mês anterior"
+                  onClick={() => setMonthCursor((current) => addMonths(current, -1))}
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
+                <p className="min-w-36 text-center text-sm font-medium capitalize">
+                  {format(monthCursor, "MMMM yyyy", { locale: ptBR })}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="size-9"
+                  aria-label="Próximo mês"
+                  onClick={() => setMonthCursor((current) => addMonths(current, 1))}
+                >
+                  <ChevronRight className="size-4" />
+                </Button>
+              </div>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Simular escolhe a noite. Fechar venda trava o tipo neste dia (mesmo cofre da aba Hotel).
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={paintMode === "simular" ? "default" : "outline"}
+                onClick={() => setPaintMode("simular")}
+              >
+                Simular
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={paintMode === "fechar" ? "default" : "outline"}
+                onClick={() => setPaintMode("fechar")}
+              >
+                Fechar venda
+              </Button>
+            </div>
+            <div className="mt-3 grid grid-cols-7 gap-1 text-center text-[11px] text-muted-foreground uppercase">
+              {["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((label) => (
+                <span key={label}>{label}</span>
+              ))}
+            </div>
+            <div className="mt-1 grid grid-cols-7 gap-1">
+              {monthDays.map((day) => {
+                const iso = toISODate(day);
+                const inMonth = day.getMonth() === monthCursor.getMonth();
+                const paint = monthPaints.get(iso);
+                const selected = iso === quoteIn;
+                const closed = Boolean(saleCloseOnNight(saleCloses, quoteType, iso));
+                return (
+                  <button
+                    key={iso}
+                    type="button"
+                    disabled={!inMonth || createClose.isPending || removeClose.isPending}
+                    onClick={() => void onCalendarDay(iso, day)}
+                    className={cn(
+                      "flex min-h-16 flex-col items-center justify-center rounded-md border-2 px-1 py-1 text-xs tabular-nums",
+                      !inMonth && "opacity-30",
+                      inMonth && paint?.weekend && !closed && "bg-primary/15",
+                      inMonth && paint && !paint.weekend && !closed && "bg-secondary",
+                      inMonth && paint?.season && !closed
+                        ? "border-status-pending bg-status-pending/25"
+                        : !closed && "border-transparent",
+                      closed && "border-destructive bg-destructive/20 text-destructive line-through",
+                      selected && !closed && "border-primary",
+                    )}
+                  >
+                    <span className="font-medium">{format(day, "d")}</span>
+                    {inMonth && closed ? (
+                      <span className="text-[10px] leading-tight">Fechado</span>
+                    ) : inMonth && paint ? (
+                      <span className="text-[10px] leading-tight">
+                        {formatCurrency(paint.amount)}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                <span className="size-3 rounded-sm bg-secondary" /> Seg–Qui
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="size-3 rounded-sm bg-primary/15" /> Sex–Dom
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="size-3 rounded-sm border-2 border-destructive bg-destructive/20" /> Fechado
+              </span>
+            </p>
           </section>
 
           <section className="grid gap-6 lg:grid-cols-[1fr_20rem]">
@@ -320,30 +559,87 @@ export function RateManagementView() {
                   ))}
                 </select>
                 <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant={quoteSegment === "balcao" ? "default" : "outline"}
+                    onClick={() => setQuoteSegment("balcao")}
+                  >
+                    Balcão
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={quoteSegment === "site" ? "default" : "outline"}
+                    onClick={() => setQuoteSegment("site")}
+                  >
+                    Site
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
                   <select
                     className="h-9 rounded-lg border border-input bg-card px-3 text-sm"
                     value={quotePax}
-                    onChange={(event) => setQuotePax(Number(event.target.value) as PaxCount)}
+                    onChange={(event) => setQuotePax(Number(event.target.value))}
                   >
-                    <option value={1}>1 hóspede</option>
-                    <option value={2}>2 hóspedes</option>
+                    <option value={1}>1 adulto</option>
+                    <option value={2}>2 adultos</option>
+                    <option value={3}>3 adultos</option>
+                    <option value={4}>4 adultos</option>
+                    <option value={5}>5 adultos</option>
+                    <option value={6}>6 adultos</option>
                   </select>
                   <select
                     className="h-9 rounded-lg border border-input bg-card px-3 text-sm"
-                    value={quoteMeal}
-                    onChange={(event) => setQuoteMeal(event.target.value as MealPlan)}
+                    value={quoteChildren}
+                    onChange={(event) => setQuoteChildren(Number(event.target.value))}
                   >
-                    <option value="cafe">Com café</option>
-                    <option value="pensao">Pensão completa</option>
+                    <option value={0}>0 crianças</option>
+                    <option value={1}>1 criança</option>
+                    <option value={2}>2 crianças</option>
+                    <option value={3}>3 crianças</option>
+                    <option value={4}>4 crianças</option>
                   </select>
                 </div>
-                <Input type="date" value={quoteIn} onChange={(event) => setQuoteIn(event.target.value)} />
-                <Input type="date" value={quoteOut} onChange={(event) => setQuoteOut(event.target.value)} />
+                <Input
+                  type="date"
+                  value={quoteIn}
+                  onChange={(event) => {
+                    const next = event.target.value || TODAY_ISO;
+                    setQuoteIn(next);
+                    if (!(quoteOut > next)) setQuoteOut(toISODate(addDays(parseISODate(next), 1)));
+                  }}
+                />
+                <Input type="date" min={quoteIn} value={quoteOutSafe} onChange={(event) => setQuoteOut(event.target.value)} />
                 <Input
                   value={quotePromo}
                   onChange={(event) => setQuotePromo(event.target.value.toUpperCase())}
                   placeholder="Cupom (CLIENTEVIP)"
                 />
+                {!quoteFits ? (
+                    <div className="rounded-lg border-2 border-destructive bg-destructive/15 p-4 text-destructive">
+                      <p className="text-lg font-semibold leading-tight">Capacidade excedida</p>
+                      <p className="mt-1 text-sm">
+                        {quoteType} cabe {quoteProfile?.maxAdults ?? "?"} adulto(s) e{" "}
+                        {quoteProfile?.maxChildren ?? 0} criança(s). Recepção pode confirmar: entra
+                        taxa extra +ADL / +CHD.
+                      </p>
+                    </div>
+                ) : null}
+                <p className="text-sm text-muted-foreground">
+                  {firstNight?.weekend ? "Linha Sex–Dom" : "Linha Seg–Qui"} ·{" "}
+                  {quotePax} ADL
+                  {quoteChildren ? ` + ${quoteChildren} CHD` : ""}
+                  {firstNight ? ` · tabela ${formatCurrency(firstNight.base)}` : ""}
+                </p>
+                {firstNight?.season ? (
+                  <p className="text-sm text-muted-foreground">
+                    Temporada {firstNight.season.name} nesta data — por isso o total não é só a tabela.
+                  </p>
+                ) : null}
+                {quote.offerDiscountTotal > 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Oferta −{formatCurrency(quote.offerDiscountTotal)}
+                  </p>
+                ) : null}
                 <p className="text-sm">
                   {quote.nights} noites · média {formatCurrency(quote.averageNight)}
                 </p>

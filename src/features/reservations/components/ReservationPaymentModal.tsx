@@ -78,7 +78,13 @@ export function ReservationPaymentModal({
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-[60] bg-foreground/40" />
-        <DialogPrimitive.Content className="fixed top-1/2 left-1/2 z-[70] flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col overflow-y-auto rounded-xl border border-border bg-card p-6 text-card-foreground shadow-lg">
+        <DialogPrimitive.Content
+          onOpenAutoFocus={(event) => event.preventDefault()}
+          onInteractOutside={(event) => event.preventDefault()}
+          onPointerDownOutside={(event) => event.preventDefault()}
+          onFocusOutside={(event) => event.preventDefault()}
+          className="fixed top-1/2 left-1/2 z-[70] flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col overflow-y-auto rounded-xl border border-border bg-card p-6 text-card-foreground shadow-lg"
+        >
           <DialogPrimitive.Title className="font-display text-xl font-medium tracking-tight">
             Pagamento e fechamento
           </DialogPrimitive.Title>
@@ -146,19 +152,23 @@ export function ReservationPaymentModal({
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="pay-metodo">Forma de pagamento</Label>
-              <select
-                id="pay-metodo"
-                value={metodo}
-                onChange={(event) => setMetodo(event.target.value as MetodoPagamento)}
-                className="h-10 rounded-md border border-input bg-card px-3 text-sm"
-              >
+              <Label>Forma de pagamento</Label>
+              <div className="grid grid-cols-2 gap-2">
                 {METODOS.map((option) => (
-                  <option key={option} value={option}>
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setMetodo(option)}
+                    className={
+                      metodo === option
+                        ? "h-10 rounded-md border-2 border-primary bg-primary/10 px-2 text-sm font-medium"
+                        : "h-10 rounded-md border border-input bg-card px-2 text-sm"
+                    }
+                  >
                     {METODO_PAGAMENTO_LABEL[option]}
-                  </option>
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
             {metodo === "pix" && pixAmount > 0 ? (
               <PixCharge

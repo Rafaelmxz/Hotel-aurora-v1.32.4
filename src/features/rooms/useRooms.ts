@@ -5,6 +5,7 @@ import {
   markRoomDirty,
   patchRoomHousekeeping,
   roomKeys,
+  setRoomNote,
   type RoomState,
 } from "./roomStore";
 import { ensureVaultRestored, persistVault } from "@/lib/hotel/hydrate";
@@ -33,6 +34,20 @@ export function usePatchHousekeeping() {
       housekeepingStatus: HousekeepingStatus;
       note?: string;
     }) => patchRoomHousekeeping(id, housekeepingStatus, { note }),
+    onSuccess: async (room) => {
+      await persistVault();
+      queryClient.setQueryData<RoomState[]>(roomKeys.all, (current) =>
+        (current ?? listRooms()).map((row) => (row.id === room.id ? room : row)),
+      );
+      await queryClient.invalidateQueries({ queryKey: roomKeys.all });
+    },
+  });
+}
+
+export function useSetRoomNote() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, note }: { id: string; note: string }) => setRoomNote(id, note),
     onSuccess: async (room) => {
       await persistVault();
       queryClient.setQueryData<RoomState[]>(roomKeys.all, (current) =>

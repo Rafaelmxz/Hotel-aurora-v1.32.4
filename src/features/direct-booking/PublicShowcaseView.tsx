@@ -1,3 +1,9 @@
+/**
+ * Motor público: quarto → extras → dados.
+ * Pode: lista vertical, banner que encolhe, experiências à parte.
+ * Proibido: clonar HSystem, tarifário extra, OTA, mudar ouro/Pix.
+ * Preço: quoteStay da grelha (C1). Criança conta no tipo (2+1), não na capacidade do quarto.
+ */
 import { useMemo, useState, type FormEvent } from "react";
 import { Check } from "lucide-react";
 import { toast } from "sonner";
@@ -5,11 +11,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { addDays } from "date-fns";
 import {
   TODAY_ISO,
   formatCurrency,
+  parseISODate,
   rooms,
   stayNights,
+  toISODate,
   type Reservation,
   type RoomType,
 } from "@/mocks/hotelData";
@@ -17,13 +26,17 @@ import { useProperty } from "@/features/settings/useProperty";
 import { quoteStay } from "@/features/rates/pricing";
 import { availableRoomsByType } from "@/features/reservations/overbooking";
 import { useCreatePublicReservation, useReservations } from "@/features/reservations/useReservations";
+import { useBlocks } from "@/features/reservations/useBlocks";
+import { useSaleCloses } from "@/features/reservations/useSaleCloses";
 import { useRooms } from "@/features/rooms/useRooms";
+import { useRoomTypes } from "@/features/rooms/useRoomTypes";
+import { occupancyOfType, typeFitsParty } from "@/features/rooms/roomTypeStore";
 import { useBookingConfig } from "@/features/direct-booking/useBookingEngine";
 import { StayVoucher } from "@/features/reservations/components/StayVoucher";
 import { getFolio } from "@/features/reservations/folioStore";
 import { PixCharge, pixNote } from "@/features/finance/PixCharge";
 import { pixTxid } from "@/lib/pix/brcode";
-import { PROPERTY_AMENITIES, ROOM_CATALOG, extraStory } from "./catalog";
+import { extraStory } from "./catalog";
 import {
   EXTRA_UNIT_LABEL,
   extraQuantity,
@@ -31,12 +44,17 @@ import {
   type BookingExtra,
 } from "./bookingStore";
 
-type Step = "vitrine" | "pagamento" | "voucher";
+type Step = "vitrine" | "extras" | "pagamento" | "voucher";
 
-function scrollToExperiences() {
-  window.setTimeout(() => {
-    document.getElementById("experiencias")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, 80);
+function nextNight(iso: string) {
+  return toISODate(addDays(parseISODate(iso), 1));
+}
+
+function occupancyGridLabel(adults: number, children: number) {
+  const adl = adults <= 4 ? `${adults} ADL` : `4 ADL + ${adults - 4} extra`;
+  const chd =
+    children <= 0 ? "" : children <= 2 ? ` · ${children} CHD` : ` · 2 CHD + ${children - 2} extra`;
+  return `Tarifa da grelha · ${adl}${chd}`;
 }
 
 function ExperienceCards({
@@ -54,63 +72,64 @@ function ExperienceCards({
   searched: boolean;
   onToggle: (id: string) => void;
 }) {
-  if (!extras.length) return null;
-  return (
-    <section id="experiencias" className="scroll-mt-40">
-      <h2 className="font-display mt-8 text-2xl font-medium tracking-tight">Experiências</h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Serviços à parte da diária. Inclua os que quiser; o valor entra na conta da reserva.
+  if (!extras.length) {
+    return (
+      <p className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">
+        Nenhuma experiência extra neste momento. Pode continuar a reserva.
       </p>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {extras.map((item) => {
-          const story = extraStory(item.id);
-          const picked = extraIds.includes(item.id);
-          const qty = extraQuantity(item, nights, guests);
-          const stayTotal = item.price * qty;
-          return (
-            <article
-              key={item.id}
-              className={cn(
-                "overflow-hidden rounded-xl bg-card shadow-[var(--shadow-border)] transition-shadow",
-                picked && "ring-2 ring-primary",
-              )}
-            >
-              <img src={story.photo} alt="" className="h-40 w-full object-cover" />
-              <div className="grid gap-2 p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-medium">{item.name}</h3>
-                  {picked ? (
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">
-                      <Check className="size-3" />
-                      Incluída
-                    </span>
-                  ) : null}
-                </div>
-                <p className="text-sm">{story.blurb}</p>
-                {story.included ? (
-                  <p className="text-xs text-muted-foreground">{story.included}</p>
+    );
+  }
+  return (
+    <div className="grid gap-4">
+      {extras.map((item) => {
+        const story = extraStory(item.id);
+        const picked = extraIds.includes(item.id);
+        const qty = extraQuantity(item, nights, guests);
+        const stayTotal = item.price * qty;
+        return (
+          <article
+            key={item.id}
+            className={cn(
+              "grid overflow-hidden rounded-xl border border-border bg-card sm:grid-cols-[10rem_1fr]",
+              picked && "ring-2 ring-primary",
+            )}
+          >
+            <img src={story.photo} alt="" className="h-36 w-full object-cover sm:h-full" />
+            <div className="grid gap-2 p-4">
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="font-medium">{item.name}</h3>
+                {picked ? (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">
+                    <Check className="size-3" />
+                    Incluída
+                  </span>
                 ) : null}
-                <p className="text-sm">
-                  {formatCurrency(item.price)} {EXTRA_UNIT_LABEL[item.unit]}
-                  {searched
-                    ? qty > 1
-                      ? ` · ${qty} × ${formatCurrency(item.price)} = ${formatCurrency(stayTotal)} nesta estadia`
-                      : ` · ${formatCurrency(stayTotal)} nesta estadia`
-                    : ""}
-                </p>
-                <Button
-                  type="button"
-                  variant={picked ? "outline" : "default"}
-                  onClick={() => onToggle(item.id)}
-                >
-                  {picked ? "Remover" : "Incluir na reserva"}
-                </Button>
               </div>
-            </article>
-          );
-        })}
-      </div>
-    </section>
+              <p className="text-sm">{story.blurb}</p>
+              {story.included ? (
+                <p className="text-xs text-muted-foreground">{story.included}</p>
+              ) : null}
+              <p className="text-sm">
+                {formatCurrency(item.price)} {EXTRA_UNIT_LABEL[item.unit]}
+                {searched
+                  ? qty > 1
+                    ? ` · ${qty} × ${formatCurrency(item.price)} = ${formatCurrency(stayTotal)} nesta estadia`
+                    : ` · ${formatCurrency(stayTotal)} nesta estadia`
+                  : ""}
+              </p>
+              <Button
+                type="button"
+                variant={picked ? "outline" : "default"}
+                className="justify-self-start"
+                onClick={() => onToggle(item.id)}
+              >
+                {picked ? "Remover" : "Incluir"}
+              </Button>
+            </div>
+          </article>
+        );
+      })}
+    </div>
   );
 }
 
@@ -119,12 +138,15 @@ export function PublicShowcaseView() {
   const { data: property } = useProperty();
   const { data: reservations = [] } = useReservations();
   const { data: roomList = [] } = useRooms();
+  const { data: types = [] } = useRoomTypes();
+  const { data: blocks = [] } = useBlocks();
+  const { data: saleCloses = [] } = useSaleCloses();
   const create = useCreatePublicReservation();
   const [checkIn, setCheckIn] = useState(TODAY_ISO);
-  const [checkOut, setCheckOut] = useState(TODAY_ISO);
+  const [checkOut, setCheckOut] = useState(() => nextNight(TODAY_ISO));
   const [adults, setAdults] = useState(2);
   const [children, setChildren] = useState(0);
-  const [searched, setSearched] = useState(false);
+  const [searched, setSearched] = useState(true);
   const [step, setStep] = useState<Step>("vitrine");
   const [roomType, setRoomType] = useState<RoomType | "">("");
   const [name, setName] = useState("");
@@ -144,22 +166,36 @@ export function PublicShowcaseView() {
   } | null>(null);
 
   const occupancy = adults + children;
-  const nights = stayNights(checkIn, checkOut);
+  const periodOk = Boolean(checkIn && checkOut && checkOut > checkIn);
+  const nights = periodOk ? stayNights(checkIn, checkOut) : 1;
   const available = useMemo(
-    () => availableRoomsByType(reservations, checkIn, checkOut, roomList.length ? roomList : rooms),
-    [reservations, checkIn, checkOut, roomList],
+    () =>
+      periodOk
+        ? availableRoomsByType(
+            reservations,
+            checkIn,
+            checkOut,
+            roomList.length ? roomList : rooms,
+            blocks,
+            saleCloses,
+          )
+        : {},
+    [periodOk, reservations, checkIn, checkOut, roomList, blocks, saleCloses],
   );
 
-  const catalog = ROOM_CATALOG.map((item) => {
-    const free = (available[item.type] ?? []).filter((room) => room.capacity >= occupancy);
-    const quote = checkIn && checkOut ? quoteStay(item.type, checkIn, checkOut, { pax: adults }) : null;
-    return { ...item, free: free.length, quote, rooms: free };
+  const catalog = types.map((item) => {
+    const fits = typeFitsParty(item, adults, children);
+    const free = fits ? (available[item.type] ?? []) : [];
+    const quote = periodOk
+      ? quoteStay(item.type, checkIn, checkOut, { adults, children, segment: "site" })
+      : null;
+    return { ...item, free: free.length, quote, rooms: free, capacity: occupancyOfType(item) };
   });
 
   const selected = catalog.find((item) => item.type === roomType);
   const quote =
-    roomType && checkIn && checkOut
-      ? quoteStay(roomType, checkIn, checkOut, { pax: adults, pix: payMode === "pix" })
+    roomType && periodOk
+      ? quoteStay(roomType, checkIn, checkOut, { adults, children, pix: payMode === "pix", segment: "site" })
       : null;
   const extrasQuote = quoteExtras(
     config.extras ?? [],
@@ -175,13 +211,21 @@ export function PublicShowcaseView() {
 
   function onSearch(event: FormEvent) {
     event.preventDefault();
-    if (!checkIn || !checkOut || checkOut <= checkIn) {
+    if (!periodOk) {
       toast.error("Informe um período válido de check-in e check-out.");
       return;
     }
     setSearched(true);
-    setStep("vitrine");
     setVoucher(null);
+    if (step === "extras" || step === "pagamento") {
+      const item = catalog.find((row) => row.type === roomType);
+      if (!item || item.free === 0) {
+        toast.warning("Esta categoria não está livre nestas datas. Escolha outro quarto.");
+        setStep("vitrine");
+      }
+      return;
+    }
+    setStep("vitrine");
     const any = catalog.some((item) => item.free > 0);
     if (!any) toast.warning("Não há quartos livres para essas datas e ocupação.");
   }
@@ -197,7 +241,7 @@ export function PublicShowcaseView() {
       return;
     }
     setRoomType(type);
-    setStep("pagamento");
+    setStep("extras");
   }
 
   function resetToVitrine() {
@@ -214,11 +258,6 @@ export function PublicShowcaseView() {
     );
   }
 
-  function backToExperiences() {
-    setStep("vitrine");
-    scrollToExperiences();
-  }
-
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     const room = selected?.rooms[0];
@@ -232,7 +271,7 @@ export function PublicShowcaseView() {
     }
     const liveQuote =
       roomType && checkIn && checkOut
-        ? quoteStay(roomType, checkIn, checkOut, { pax: adults, pix: payMode === "pix" })
+        ? quoteStay(roomType, checkIn, checkOut, { adults, children, pix: payMode === "pix", segment: "site" })
         : quote;
     const liveExtras = quoteExtras(
       config.extras ?? [],
@@ -254,6 +293,8 @@ export function PublicShowcaseView() {
         checkIn,
         checkOut,
         guests: occupancy,
+        adults,
+        children,
         payMode,
         extras: liveExtras.lines.map((line) => ({
           id: line.id,
@@ -299,46 +340,95 @@ export function PublicShowcaseView() {
     }
   }
 
+  const searchBar = (
+    <form onSubmit={onSearch} className="border-b border-border bg-background/95 px-4 py-3 backdrop-blur-sm sm:px-6">
+      <div className="mx-auto grid max-w-5xl gap-2 sm:grid-cols-5">
+        <div className="grid gap-1">
+          <Label className="text-xs">Check-in</Label>
+          <Input
+            type="date"
+            required
+            min={TODAY_ISO}
+            value={checkIn}
+            onChange={(event) => {
+              const next = event.target.value >= TODAY_ISO ? event.target.value : TODAY_ISO;
+              setCheckIn(next);
+              setCheckOut(nextNight(next));
+            }}
+          />
+        </div>
+        <div className="grid gap-1">
+          <Label className="text-xs">Check-out</Label>
+          <Input
+            type="date"
+            required
+            min={nextNight(checkIn)}
+            value={checkOut}
+            onChange={(event) => {
+              const min = nextNight(checkIn);
+              setCheckOut(event.target.value > checkIn ? event.target.value : min);
+            }}
+          />
+        </div>
+        <div className="grid gap-1">
+          <Label className="text-xs">Adultos</Label>
+          <Input
+            type="text"
+            inputMode="numeric"
+            value={String(adults).padStart(2, "0")}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowUp") {
+                event.preventDefault();
+                setAdults((current) => Math.min(6, current + 1));
+              }
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                setAdults((current) => Math.max(1, current - 1));
+              }
+            }}
+            onChange={(event) => {
+              const digits = event.target.value.replace(/\D/g, "");
+              if (!digits) {
+                setAdults(1);
+                return;
+              }
+              const padded = String(adults).padStart(2, "0");
+              const next = digits.startsWith(padded)
+                ? Number(digits.slice(padded.length) || padded)
+                : Number(digits);
+              setAdults(Math.min(6, Math.max(1, next)));
+            }}
+          />
+        </div>
+        <div className="grid gap-1">
+          <Label className="text-xs">Crianças</Label>
+          <Input
+            type="number"
+            min={0}
+            max={4}
+            value={children}
+            onChange={(event) => setChildren(Math.max(0, Number(event.target.value) || 0))}
+          />
+        </div>
+        {step === "vitrine" ? (
+          <Button type="submit" className="self-end">
+            Buscar
+          </Button>
+        ) : (
+          <p className="self-end pb-2 text-xs text-muted-foreground">
+            Datas atualizam o preço nesta tela.
+          </p>
+        )}
+      </div>
+    </form>
+  );
+
   return (
     <div className="-mx-4 flex min-w-0 flex-col sm:-mx-6">
-      <form
-        onSubmit={onSearch}
-        className="sticky top-[3.6rem] z-30 border-b border-border bg-background/95 px-4 py-3 backdrop-blur-sm sm:px-6"
-      >
-        <div className="mx-auto grid max-w-5xl gap-2 sm:grid-cols-5">
-          <div className="grid gap-1">
-            <Label className="text-xs">Check-in</Label>
-            <Input type="date" required min={TODAY_ISO} value={checkIn} onChange={(event) => setCheckIn(event.target.value)} />
-          </div>
-          <div className="grid gap-1">
-            <Label className="text-xs">Check-out</Label>
-            <Input type="date" required min={checkIn} value={checkOut} onChange={(event) => setCheckOut(event.target.value)} />
-          </div>
-          <div className="grid gap-1">
-            <Label className="text-xs">Adultos</Label>
-            <Input
-              type="number"
-              min={1}
-              max={6}
-              value={adults}
-              onChange={(event) => setAdults(Math.max(1, Number(event.target.value) || 1))}
-            />
-          </div>
-          <div className="grid gap-1">
-            <Label className="text-xs">Crianças</Label>
-            <Input
-              type="number"
-              min={0}
-              max={4}
-              value={children}
-              onChange={(event) => setChildren(Math.max(0, Number(event.target.value) || 0))}
-            />
-          </div>
-          <Button type="submit" className="self-end">
-            Buscar disponibilidade
-          </Button>
-        </div>
-      </form>
+      {step === "vitrine" ? (
+        <img src={config.photos[0]} alt="" className="h-44 w-full object-cover sm:h-52" />
+      ) : null}
+      <div className="sticky top-[3.6rem] z-30 bg-background">{searchBar}</div>
 
       {step === "voucher" && voucher ? (
         <div className="mx-auto mt-6 w-full max-w-xl px-4 pb-10 sm:px-6">
@@ -348,9 +438,9 @@ export function PublicShowcaseView() {
             hotelName={property.name}
             address={property.address}
             phone={property.phone}
-            checkInTime={config.checkInTime}
-            checkOutTime={config.checkOutTime}
-            cancellationPolicy={config.cancellationPolicy}
+            checkInTime={property.checkInTime}
+            checkOutTime={property.checkOutTime}
+            cancellationPolicy={property.cancellationPolicy}
             totais={voucher.totais}
             heading={
               voucher.reservation.status === "pendente"
@@ -363,6 +453,32 @@ export function PublicShowcaseView() {
             Nova reserva
           </Button>
         </div>
+      ) : step === "extras" && selected ? (
+        <div className="mx-auto mt-6 w-full max-w-2xl px-4 pb-10 sm:px-6">
+          <button type="button" className="mb-4 text-sm underline" onClick={() => setStep("vitrine")}>
+            ← Voltar aos quartos
+          </button>
+          <h2 className="font-display text-2xl font-medium tracking-tight">Experiências</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {selected.type} · {quote?.nights} noites · diárias {formatCurrency(quote?.total ?? 0)}
+            {extrasTotal > 0 ? ` · extras ${formatCurrency(extrasTotal)}` : ""}
+            {" · "}
+            {occupancyGridLabel(adults, children)}
+          </p>
+          <div className="mt-4">
+            <ExperienceCards
+              extras={extraCatalog}
+              extraIds={extraIds}
+              nights={nights}
+              guests={occupancy}
+              searched={searched}
+              onToggle={toggleExtra}
+            />
+          </div>
+          <Button type="button" className="mt-5 w-full" onClick={() => setStep("pagamento")}>
+            Continuar
+          </Button>
+        </div>
       ) : step === "pagamento" && selected ? (
         <form
           onSubmit={onSubmit}
@@ -371,9 +487,9 @@ export function PublicShowcaseView() {
           <button
             type="button"
             className="mb-4 text-sm underline"
-            onClick={() => setStep("vitrine")}
+            onClick={() => setStep("extras")}
           >
-            ← Voltar ao catálogo
+            ← Voltar às experiências
           </button>
           <img src={selected.photo} alt="" className="mb-4 h-48 w-full rounded-xl object-cover" />
           <h2 className="font-display text-2xl font-medium tracking-tight">{selected.type}</h2>
@@ -381,6 +497,11 @@ export function PublicShowcaseView() {
             {occupancy} hóspede(s) · {quote?.nights} noites · diárias {formatCurrency(quote?.total ?? 0)}
             {extrasTotal > 0 ? ` · experiências ${formatCurrency(extrasTotal)}` : ""}
             {payMode === "pix" ? ` · sinal ${formatCurrency(deposit)}` : ""}
+            {" · "}
+            {occupancyGridLabel(adults, children)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Check-in {property.checkInTime} · Check-out {property.checkOutTime}. {property.cancellationPolicy}
           </p>
           {quote && quote.offerDiscountTotal > 0 ? (
             <p className="text-sm text-emerald-700">
@@ -406,38 +527,20 @@ export function PublicShowcaseView() {
               <Label>Telefone</Label>
               <Input value={phone} onChange={(event) => setPhone(event.target.value)} />
             </div>
-            {extraCatalog.length ? (
-              <div className="grid gap-2">
-                <p className="text-sm font-medium">Experiências</p>
-                {extrasQuote.lines.length ? (
-                  <ul className="grid gap-1 text-sm">
-                    {extrasQuote.lines.map((line) => (
-                      <li key={line.id} className="flex justify-between gap-3">
-                        <span>
-                          {line.name}
-                          <span className="block text-xs text-muted-foreground">
-                            {line.quantity} × {formatCurrency(line.unitPrice)}
-                          </span>
-                        </span>
-                        <span className="tabular-nums">{formatCurrency(line.total)}</span>
-                      </li>
-                    ))}
-                    <li className="flex justify-between gap-3 font-medium">
-                      <span>Total experiências</span>
-                      <span className="tabular-nums">{formatCurrency(extrasTotal)}</span>
-                    </li>
-                  </ul>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Nenhuma experiência nesta reserva.</p>
-                )}
-                <button
-                  type="button"
-                  className="justify-self-start text-sm underline"
-                  onClick={backToExperiences}
-                >
-                  Alterar nas Experiências
-                </button>
-              </div>
+            {extrasQuote.lines.length ? (
+              <ul className="grid gap-1 text-sm">
+                {extrasQuote.lines.map((line) => (
+                  <li key={line.id} className="flex justify-between gap-3">
+                    <span>
+                      {line.name}
+                      <span className="block text-xs text-muted-foreground">
+                        {line.quantity} × {formatCurrency(line.unitPrice)}
+                      </span>
+                    </span>
+                    <span className="tabular-nums">{formatCurrency(line.total)}</span>
+                  </li>
+                ))}
+              </ul>
             ) : null}
             <fieldset className="grid gap-2">
               <legend className="text-sm font-medium">Pagamento do sinal</legend>
@@ -469,87 +572,84 @@ export function PublicShowcaseView() {
                 A recepção confirma a pré-reserva. O pagamento entra na conta na chegada.
               </p>
             )}
-            <Button type="submit" disabled={create.isPending}>
+            <Button type="submit" disabled={create.isPending || selected.free === 0}>
               {payMode === "pix" ? "Já paguei o Pix" : "Enviar pré-reserva"}
             </Button>
           </div>
         </form>
       ) : (
-        <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
-          <img
-            src={config.photos[0]}
-            alt=""
-            className="h-56 w-full rounded-2xl object-cover sm:h-80"
-          />
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {config.photos.slice(1).map((src) => (
-              <img key={src} src={src} alt="" className="h-28 w-full rounded-xl object-cover" />
-            ))}
-          </div>
-          <header className="mt-6">
-            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Pousada</p>
-            <h1 className="font-display text-4xl font-medium tracking-tight">{property.name}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">{property.address}</p>
-            <p className="text-sm text-muted-foreground">
-              Check-in {config.checkInTime} · Check-out {config.checkOutTime}
-              {property.phone ? ` · ${property.phone}` : ""}
-            </p>
-          </header>
-          <ul className="mt-4 flex flex-wrap gap-2">
-            {PROPERTY_AMENITIES.map((item) => (
-              <li
-                key={item}
-                className="rounded-full bg-secondary px-3 py-1 text-xs font-medium"
-              >
-                {item}
-              </li>
-            ))}
-          </ul>
+        <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
+          <h1 className="font-display text-3xl font-medium tracking-tight">{property.name}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {property.address}
+            {property.phone ? ` · ${property.phone}` : ""}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Check-in {property.checkInTime} · Check-out {property.checkOutTime}
+          </p>
 
-          <h2 className="font-display mt-8 text-2xl font-medium tracking-tight">Quartos</h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <h2 className="font-display mt-8 text-xl font-medium tracking-tight">Quartos</h2>
+          <ul className="mt-4 grid gap-4">
             {catalog.map((item) => {
+              const overCapacity = !typeFitsParty(item, adults, children);
               const soldOut = searched && item.free === 0;
-              const maxCap = Math.max(
-                item.capacity,
-                ...rooms.filter((room) => room.type === item.type).map((room) => room.capacity),
-              );
               return (
-                <article key={item.type} className="overflow-hidden rounded-xl bg-card shadow-[var(--shadow-border)]">
-                  <img src={item.photo} alt="" className="h-40 w-full object-cover" />
-                  <div className="grid gap-2 p-4">
-                    <h3 className="font-medium">{item.type}</h3>
-                    <p className="text-xs text-muted-foreground">Até {maxCap} pessoas</p>
-                    <p className="text-sm">{item.description}</p>
-                    {searched ? (
-                      <p className="text-sm">
-                        {soldOut
-                          ? "Esgotado neste período"
-                          : `${item.free} livre(s) · a partir de ${formatCurrency(item.quote?.averageNight ?? 0)}`}
+                <li key={item.type}>
+                  <article className="grid overflow-hidden rounded-xl border border-border bg-card sm:grid-cols-[12rem_1fr]">
+                    <img src={item.photo} alt="" className="h-40 w-full object-cover sm:h-full" />
+                    <div className="grid gap-2 p-4">
+                      <h3 className="font-display text-xl font-medium">{item.type}</h3>
+                      <p className="text-sm">{item.description}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Incluso: {item.amenities.join(" · ")} · até {item.maxAdults} adulto(s)
+                        {item.maxChildren ? ` e ${item.maxChildren} criança(s)` : ""}
                       </p>
-                    ) : null}
-                    <Button
-                      type="button"
-                      variant={soldOut ? "outline" : "default"}
-                      disabled={soldOut}
-                      onClick={() => chooseType(item.type)}
-                    >
-                      {soldOut ? "Indisponível" : "Escolher e pagar"}
-                    </Button>
-                  </div>
-                </article>
+                      {overCapacity ? (
+                        <p className="rounded-md border-2 border-destructive bg-destructive/15 px-3 py-2 text-sm font-semibold text-destructive">
+                          Capacidade excedida — este quarto não cabe neste grupo.
+                        </p>
+                      ) : (
+                        <div className="grid gap-0.5">
+                          <p className="font-display text-2xl font-medium tabular-nums">
+                            {formatCurrency(item.quote?.averageNight ?? 0)}
+                            <span className="ml-1 text-sm font-normal text-muted-foreground">/ noite</span>
+                          </p>
+                          <p className="text-sm">
+                            {item.quote?.nights ?? nights} noite(s) · {formatCurrency(item.quote?.total ?? 0)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{occupancyGridLabel(adults, children)}</p>
+                          {periodOk ? (
+                            <p
+                              className={
+                                item.free === 0
+                                  ? "text-sm font-medium text-destructive"
+                                  : "text-sm font-medium"
+                              }
+                            >
+                              {item.free === 0
+                                ? "Esgotado neste período"
+                                : item.free === 1
+                                  ? "1 quarto livre"
+                                  : `${item.free} quartos livres`}
+                            </p>
+                          ) : null}
+                        </div>
+                      )}
+                      <Button
+                        type="button"
+                        className="justify-self-start"
+                        variant={soldOut || overCapacity ? "outline" : "default"}
+                        disabled={soldOut || overCapacity}
+                        onClick={() => chooseType(item.type)}
+                      >
+                        {overCapacity ? "Capacidade excedida" : soldOut ? "Indisponível" : "Continuar"}
+                      </Button>
+                    </div>
+                  </article>
+                </li>
               );
             })}
-          </div>
-
-          <ExperienceCards
-            extras={extraCatalog}
-            extraIds={extraIds}
-            nights={nights}
-            guests={occupancy}
-            searched={searched}
-            onToggle={toggleExtra}
-          />
+          </ul>
         </div>
       )}
     </div>

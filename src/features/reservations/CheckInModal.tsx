@@ -1,20 +1,14 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { LogIn, LogOut, Ban, Clock, AlertTriangle } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { LogIn, LogOut, Ban, Clock, AlertTriangle, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { OnMapDialog } from "./OnMapDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
@@ -33,9 +27,10 @@ import { useFolio } from "./hooks/useFolio";
 import { notesSayPayAtCheckIn } from "./types/folio";
 import { useMarkRoomDirty, useRooms } from "@/features/rooms/useRooms";
 import { blocksCheckIn, HOUSEKEEPING_LABEL } from "@/features/rooms/housekeeping";
-import { findGuestByName, guestIdFromName } from "@/features/guests/guestStore";
+import { findGuestByName } from "@/features/guests/guestStore";
 import { useBookingConfig } from "@/features/direct-booking/useBookingEngine";
 import { useProperty } from "@/features/settings/useProperty";
+import { isCancelFree, stayHoursLabel } from "@/features/settings/propertyStore";
 
 function nowLocal() {
   return format(new Date(), "yyyy-MM-dd'T'HH:mm");
@@ -101,6 +96,12 @@ export function CheckInModal({
   const [checkInAt, setCheckInAt] = useState("");
   const [checkOutAt, setCheckOutAt] = useState("");
   const [notes, setNotes] = useState("");
+  const [fnrhDoc, setFnrhDoc] = useState("");
+  const [fnrhBirth, setFnrhBirth] = useState("");
+  const [fnrhNation, setFnrhNation] = useState("Brasil");
+  const [fnrhJob, setFnrhJob] = useState("");
+  const [fnrhFrom, setFnrhFrom] = useState("");
+  const [fnrhTo, setFnrhTo] = useState("");
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [checkoutPending, setCheckoutPending] = useState(false);
   const [localStatus, setLocalStatus] = useState<ReservationStatus | null>(null);
@@ -119,6 +120,12 @@ export function CheckInModal({
     setCheckInAt(toDateTimeLocal(reservation.actualCheckInAt) || nowLocal());
     setCheckOutAt(toDateTimeLocal(reservation.actualCheckOutAt));
     setNotes(reservation.receptionNotes ?? "");
+    setFnrhDoc(reservation.fnrh?.document ?? findGuestByName(reservation.guestName)?.cpf ?? "");
+    setFnrhBirth(reservation.fnrh?.birthDate ?? "");
+    setFnrhNation(reservation.fnrh?.nationality || "Brasil");
+    setFnrhJob(reservation.fnrh?.profession ?? "");
+    setFnrhFrom(reservation.fnrh?.originCity ?? "");
+    setFnrhTo(reservation.fnrh?.nextCity ?? "");
     setLocalStatus(reservation.status);
   }, [reservation?.id]);
 
@@ -203,12 +210,33 @@ export function CheckInModal({
         );
         return;
       }
+      if (fnrhDoc.trim().length < 5 || !fnrhBirth) {
+        toast.error("Preencha a FNRH: documento e data de nascimento.");
+        return;
+      }
+    }
+
+    if (status === "cancelada") {
+      const free = isCancelFree(reservation.checkIn, new Date(), property);
+      toast.message(
+        free
+          ? `Dentro da janela gratuita (${property.cancelFreeHours}h). ${property.cancellationPolicy}`
+          : `Fora da janela gratuita (${property.cancelFreeHours}h). ${property.cancellationPolicy}`,
+      );
     }
 
     const payload = {
       id: reservation.id,
       status,
       receptionNotes: notes.trim() || undefined,
+      fnrh: {
+        document: fnrhDoc.trim(),
+        birthDate: fnrhBirth,
+        nationality: fnrhNation.trim() || "Brasil",
+        profession: fnrhJob.trim(),
+        originCity: fnrhFrom.trim(),
+        nextCity: fnrhTo.trim(),
+      },
       actualCheckInAt:
         status === "check-in"
           ? fromDateTimeLocal(checkInAt || nowLocal())
@@ -227,9 +255,11 @@ export function CheckInModal({
   }
 
   return (
-    <Sheet
+    <>
+    <OnMapDialog
       open={Boolean(reservation)}
       onOpenChange={(open) => {
+        if (!open && paymentOpen) return;
         if (!open) {
           setTab("atendimento");
           setPaymentOpen(false);
@@ -237,11 +267,11 @@ export function CheckInModal({
         }
         onOpenChange(open);
       }}
+      className="flex max-h-[min(36rem,calc(100dvh-6rem))] flex-col overflow-hidden p-0"
     >
-      <SheetContent className="max-h-dvh overflow-y-auto sm:max-w-lg">
         {reservation ? (
           <>
-            <SheetHeader>
+            <div className="px-6 pt-6 pr-12">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant={STATUS_BADGE[displayStatus]}>
                   {STATUS_LABEL[displayStatus]}
@@ -252,19 +282,19 @@ export function CheckInModal({
                   </span>
                 ) : null}
               </div>
-              <SheetTitle>Recepção</SheetTitle>
-              <SheetDescription>
+              <DialogPrimitive.Title className="font-display mt-2 text-xl font-medium tracking-tight">
+                Reserva
+              </DialogPrimitive.Title>
+              <DialogPrimitive.Description className="text-sm text-muted-foreground">
                 {reservation.guestName} · {formatStayRange(reservation.checkIn, reservation.checkOut)}
                 {" · "}
-                <Link
-                  to="/hospedes/$guestId"
-                  params={{ guestId: guestIdFromName(reservation.guestName) }}
-                  className="underline underline-offset-2"
-                >
-                  Ficha do hóspede
-                </Link>
-              </SheetDescription>
-            </SheetHeader>
+                {stayHoursLabel(property)}
+              </DialogPrimitive.Description>
+              <DialogPrimitive.Close className="absolute top-4 right-4 opacity-70 hover:opacity-100">
+                <X className="size-4" />
+                <span className="sr-only">Fechar</span>
+              </DialogPrimitive.Close>
+            </div>
 
             <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 pb-8">
               <div className="grid grid-cols-3 rounded-full bg-secondary p-1">
@@ -308,6 +338,9 @@ export function CheckInModal({
 
               {tab === "atendimento" ? (
                 <div className="flex flex-col gap-5">
+                  <p className="rounded-lg bg-secondary/50 px-3 py-2 text-xs text-muted-foreground">
+                    {stayHoursLabel(property)}. {property.cancellationPolicy}
+                  </p>
                   {housekeepingBlocked && roomState ? (
                     <div className="flex gap-2 rounded-lg bg-status-pending/10 px-3 py-3 text-sm text-status-pending">
                       <AlertTriangle className="mt-0.5 size-4 shrink-0" />
@@ -328,6 +361,68 @@ export function CheckInModal({
                       </p>
                     </div>
                   ) : null}
+                  <section className="grid gap-3 rounded-xl border border-border p-4">
+                    <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                      FNRH · ficha do hóspede
+                    </p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="grid gap-1">
+                        <Label htmlFor="fnrh-doc">Documento</Label>
+                        <Input
+                          id="fnrh-doc"
+                          value={fnrhDoc}
+                          onChange={(event) => setFnrhDoc(event.target.value)}
+                          placeholder="CPF ou passaporte"
+                        />
+                      </div>
+                      <div className="grid gap-1">
+                        <Label htmlFor="fnrh-birth">Nascimento</Label>
+                        <Input
+                          id="fnrh-birth"
+                          type="date"
+                          value={fnrhBirth}
+                          onChange={(event) => setFnrhBirth(event.target.value)}
+                        />
+                      </div>
+                      <div className="grid gap-1">
+                        <Label htmlFor="fnrh-nation">Nacionalidade</Label>
+                        <Input
+                          id="fnrh-nation"
+                          value={fnrhNation}
+                          onChange={(event) => setFnrhNation(event.target.value)}
+                        />
+                      </div>
+                      <div className="grid gap-1">
+                        <Label htmlFor="fnrh-job">Profissão</Label>
+                        <Input
+                          id="fnrh-job"
+                          value={fnrhJob}
+                          onChange={(event) => setFnrhJob(event.target.value)}
+                        />
+                      </div>
+                      <div className="grid gap-1">
+                        <Label htmlFor="fnrh-from">Procedência</Label>
+                        <Input
+                          id="fnrh-from"
+                          value={fnrhFrom}
+                          onChange={(event) => setFnrhFrom(event.target.value)}
+                          placeholder="Cidade"
+                        />
+                      </div>
+                      <div className="grid gap-1">
+                        <Label htmlFor="fnrh-to">Próximo destino</Label>
+                        <Input
+                          id="fnrh-to"
+                          value={fnrhTo}
+                          onChange={(event) => setFnrhTo(event.target.value)}
+                          placeholder="Cidade"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Documento e nascimento são obrigatórios para o check-in.
+                    </p>
+                  </section>
                   {isPreReservation ? (
                     <section className="grid gap-3 rounded-xl bg-status-pending/10 p-4">
                       <p className="text-sm font-medium text-status-pending">
@@ -473,7 +568,7 @@ export function CheckInModal({
             </div>
           </>
         ) : null}
-      </SheetContent>
+    </OnMapDialog>
       {reservation ? (
         <ReservationPaymentModal
           reservationId={reservation.id}
@@ -495,6 +590,6 @@ export function CheckInModal({
           }}
         />
       ) : null}
-    </Sheet>
+    </>
   );
 }

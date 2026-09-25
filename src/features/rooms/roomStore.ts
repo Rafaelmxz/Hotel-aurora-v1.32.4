@@ -11,6 +11,7 @@ export type RoomState = Room & {
   housekeepingStatus: HousekeepingStatus;
   housekeepingNote?: string;
   cleaningStartedAt?: string;
+  frontDeskNote?: string;
 };
 
 export const roomKeys = {
@@ -72,4 +73,14 @@ export function markRoomDirty(id: string): RoomState | undefined {
   if (!room) return undefined;
   if (room.housekeepingStatus === "manutencao") return { ...room };
   return patchRoomHousekeeping(id, "sujo");
+}
+
+export function setRoomNote(id: string, note: string): RoomState {
+  const index = store.findIndex((row) => row.id === id);
+  if (index < 0) throw new Error("Quarto não encontrado");
+  const current = store[index]!;
+  const frontDeskNote = note.trim().slice(0, 80) || undefined;
+  const next: RoomState = { ...current, frontDeskNote };
+  store = [...store.slice(0, index), next, ...store.slice(index + 1)];
+  return { ...next };
 }

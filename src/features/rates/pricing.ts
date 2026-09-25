@@ -12,9 +12,9 @@ import {
   listCategoryRates,
   listPackages,
   listSeasons,
-  pickNightRate,
+  occupancyNightRate,
+  type CategoryRate,
   type MealPlan,
-  type PaxCount,
   type PromoCode,
   type Season,
   type SpecialPackage,
@@ -42,7 +42,9 @@ export type StayQuote = {
   minNightsRequired: number;
   minNightsOk: boolean;
   mealPlan: MealPlan;
-  pax: PaxCount;
+  pax: number;
+  adults: number;
+  children: number;
   promo?: PromoCode;
   packages: SpecialPackage[];
   appliedOffers: Offer[];
@@ -51,10 +53,24 @@ export type StayQuote = {
 
 export type QuoteOptions = {
   pax?: number;
+  adults?: number;
+  children?: number;
   mealPlan?: MealPlan;
   promoCode?: string;
   pix?: boolean;
+  segment?: "balcao" | "site";
+  categories?: CategoryRate[];
+  seasons?: Season[];
 };
+
+function resolveAdults(options: QuoteOptions) {
+  const raw = options.adults ?? options.pax ?? 2;
+  return Math.min(6, Math.max(1, Math.round(raw) || 1));
+}
+
+function resolveChildren(options: QuoteOptions) {
+  return Math.min(4, Math.max(0, Math.round(options.children ?? 0) || 0));
+}
 
 function isWeekendNight(date: Date) {
   const day = date.getDay();
@@ -68,12 +84,37 @@ function toISO(date: Date) {
   return `${y}-${m}-${d}`;
 }
 
-function resolvePax(pax?: number): PaxCount {
-  return (pax ?? 2) <= 1 ? 1 : 2;
-}
-
 export function seasonsOn(dateIso: string, seasons = listSeasons()): Season[] {
   return seasons.filter((season) => dateIso >= season.start && dateIso <= season.end);
+}
+
+export type NightPaint = {
+  date: string;
+  weekend: boolean;
+  base: number;
+  amount: number;
+  season?: Season;
+};
+
+export function paintNight(
+  roomType: RoomType,
+  dateIso: string,
+  options: QuoteOptions = {},
+): NightPaint {
+  const date = parseISODate(dateIso);
+  const weekend = isWeekendNight(date);
+  const adults = resolveAdults(options);
+  const children = resolveChildren(options);
+  const category = (options.categories ?? listCategoryRates()).find((row) => row.type === roomType);
+  const base = category ? occupancyNightRate(category, weekend, adults, children) : 0;
+  const season = strongestSeason(base, seasonsOn(dateIso, options.seasons ?? listSeasons()));
+  return {
+    date: dateIso,
+    weekend,
+    base,
+    amount: season ? applySeason(base, season) : base,
+    season,
+  };
 }
 
 function applySeason(base: number, season: Season) {
@@ -112,12 +153,14 @@ export function quoteStay(
   checkOut: string,
   options: QuoteOptions = {},
 ): StayQuote {
-  const pax = resolvePax(options.pax);
+  const adults = resolveAdults(options);
+  const children = resolveChildren(options);
+  const pax = adults;
   const mealPlan = options.mealPlan ?? "cafe";
   const start = parseISODate(checkIn);
   const end = parseISODate(checkOut);
   const nights = Math.max(1, differenceInCalendarDays(end, start));
-  const category = listCategoryRates().find((row) => row.type === roomType);
+  const category = (options.categories ?? listCategoryRates()).find((row) => row.type === roomType);
   const allSeasons = listSeasons();
   const nightsDetail: NightQuote[] = [];
 
@@ -125,9 +168,12 @@ export function quoteStay(
     const date = addDays(start, i);
     const dateIso = toISO(date);
     const weekendNight = isWeekendNight(date);
-    const base = category
-      ? pickNightRate(category, weekendNight, pax, mealPlan)
+    const raw = category
+      ? occupancyNightRate(category, weekendNight, adults, children)
       : 0;
+    const siteCut =
+      options.segment === "site" ? Math.round((category?.sitePercent ?? 0)) : 0;
+    const base = Math.max(0, Math.round(raw * (1 + siteCut / 100)));
     const season = strongestSeason(base, seasonsOn(dateIso, allSeasons));
     let amount = season ? applySeason(base, season) : base;
     const offer = strongestOffer(
@@ -206,6 +252,8 @@ export function quoteStay(
     minNightsOk: nights >= minNightsRequired,
     mealPlan,
     pax,
+    adults,
+    children,
     promo,
     packages: matchedPackages,
     appliedOffers,

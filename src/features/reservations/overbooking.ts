@@ -1,3 +1,9 @@
+/**
+ * Conflito de vaga: reserva ativa, bloqueio OU venda fechada no tipo/noites.
+ * Tela não decide overbooking; esta função recusa.
+ * Proibido: inventar reserva HOUSE / hóspede falso.
+ * Bloqueio e fechamento fecham mapa e site; não entram em folio nem pré-reserva.
+ */
 import {
   parseISODate,
   roomById,
@@ -7,8 +13,16 @@ import {
   type Room,
 } from "@/mocks/hotelData";
 import { addDays, format } from "date-fns";
+import { closeCoversType, type SaleClose } from "./saleCloseStore";
 
 const ACTIVE: ReservationStatus[] = ["pendente", "confirmada", "check-in"];
+
+export type OccupyingSpan = {
+  id: string;
+  roomId: string;
+  checkIn: string;
+  checkOut: string;
+};
 
 export class OverbookingError extends Error {
   constructor(
@@ -51,15 +65,76 @@ export function findConflicts(
   );
 }
 
+export function findBlockConflicts(
+  blocks: OccupyingSpan[],
+  roomId: string,
+  checkIn: string,
+  checkOut: string,
+  excludeId?: string,
+): OccupyingSpan[] {
+  return blocks.filter(
+    (row) =>
+      row.roomId === roomId &&
+      row.id !== excludeId &&
+      intervalsOverlap(checkIn, checkOut, row.checkIn, row.checkOut),
+  );
+}
+
+export function findSaleCloseHits(
+  closes: SaleClose[],
+  roomType: Room["type"],
+  checkIn: string,
+  checkOut: string,
+): SaleClose[] {
+  return closes.filter(
+    (row) =>
+      closeCoversType(row, roomType) &&
+      intervalsOverlap(checkIn, checkOut, row.checkIn, row.checkOut),
+  );
+}
+
+export type RoomHoldReason = "livre" | "reserva" | "bloqueado" | "fechado";
+
+export function roomHoldReason(
+  room: Room,
+  reservations: Reservation[],
+  checkIn: string,
+  checkOut: string,
+  blocks: OccupyingSpan[] = [],
+  saleCloses: SaleClose[] = [],
+): RoomHoldReason {
+  if (findConflicts(reservations, room.id, checkIn, checkOut).length > 0) return "reserva";
+  if (findBlockConflicts(blocks, room.id, checkIn, checkOut).length > 0) return "bloqueado";
+  if (findSaleCloseHits(saleCloses, room.type, checkIn, checkOut).length > 0) return "fechado";
+  return "livre";
+}
+
+export const HOLD_REASON_LABEL: Record<RoomHoldReason, string> = {
+  livre: "livre",
+  reserva: "reserva",
+  bloqueado: "bloqueado",
+  fechado: "venda fechada",
+};
+
+export function saleCloseOnNight(closes: SaleClose[], roomType: Room["type"], night: string) {
+  return closes.find(
+    (row) => closeCoversType(row, roomType) && night >= row.checkIn && night < row.checkOut,
+  );
+}
+
 export function availableRoomsByType(
   reservations: Reservation[],
   checkIn: string,
   checkOut: string,
   roomList: Room[] = rooms,
+  blocks: OccupyingSpan[] = [],
+  saleCloses: SaleClose[] = [],
 ) {
   const grouped: Record<string, Room[]> = {};
   for (const room of roomList) {
     if (findConflicts(reservations, room.id, checkIn, checkOut).length > 0) continue;
+    if (findBlockConflicts(blocks, room.id, checkIn, checkOut).length > 0) continue;
+    if (findSaleCloseHits(saleCloses, room.type, checkIn, checkOut).length > 0) continue;
     const list = grouped[room.type] ?? [];
     list.push(room);
     grouped[room.type] = list;
@@ -73,28 +148,48 @@ export function findAlternativeRooms(
   checkIn: string,
   checkOut: string,
   roomList: Room[] = rooms,
+  blocks: OccupyingSpan[] = [],
+  saleCloses: SaleClose[] = [],
 ): Room[] {
   const current = roomList.find((room) => room.id === roomId) ?? roomById(roomId);
   if (!current) return [];
   return roomList.filter((room) => {
     if (room.id === roomId) return false;
     if (room.type !== current.type) return false;
-    return findConflicts(reservations, room.id, checkIn, checkOut).length === 0;
+    if (findConflicts(reservations, room.id, checkIn, checkOut).length > 0) return false;
+    if (findBlockConflicts(blocks, room.id, checkIn, checkOut).length > 0) return false;
+    return findSaleCloseHits(saleCloses, room.type, checkIn, checkOut).length === 0;
   });
 }
 
 export function blockedNightsForRoom(
   reservations: Reservation[],
   roomId: string,
+  blocks: OccupyingSpan[] = [],
+  roomType?: Room["type"],
+  saleCloses: SaleClose[] = [],
 ): Set<string> {
   const blocked = new Set<string>();
-  for (const row of reservations) {
-    if (row.roomId !== roomId || !isActiveStay(row)) continue;
-    let cursor = parseISODate(row.checkIn);
-    const end = parseISODate(row.checkOut);
-    while (cursor < end) {
+  function paint(start: string, end: string) {
+    let cursor = parseISODate(start);
+    const last = parseISODate(end);
+    while (cursor < last) {
       blocked.add(format(cursor, "yyyy-MM-dd"));
       cursor = addDays(cursor, 1);
+    }
+  }
+  for (const row of reservations) {
+    if (row.roomId !== roomId || !isActiveStay(row)) continue;
+    paint(row.checkIn, row.checkOut);
+  }
+  for (const row of blocks) {
+    if (row.roomId !== roomId) continue;
+    paint(row.checkIn, row.checkOut);
+  }
+  if (roomType) {
+    for (const row of saleCloses) {
+      if (!closeCoversType(row, roomType)) continue;
+      paint(row.checkIn, row.checkOut);
     }
   }
   return blocked;
@@ -119,6 +214,9 @@ export function findOverbookedIds(reservations: Reservation[]): Set<string> {
 export function assertNoOverbooking(
   reservations: Reservation[],
   input: { roomId: string; checkIn: string; checkOut: string; id?: string },
+  blocks: OccupyingSpan[] = [],
+  saleCloses: SaleClose[] = [],
+  roomList: Room[] = rooms,
 ) {
   const conflicts = findConflicts(
     reservations,
@@ -127,15 +225,33 @@ export function assertNoOverbooking(
     input.checkOut,
     input.id,
   );
-  if (conflicts.length === 0) return;
+  const blockHits = findBlockConflicts(
+    blocks,
+    input.roomId,
+    input.checkIn,
+    input.checkOut,
+    input.id,
+  );
+  const room = roomList.find((row) => row.id === input.roomId) ?? roomById(input.roomId);
+  const closeHits = room
+    ? findSaleCloseHits(saleCloses, room.type, input.checkIn, input.checkOut)
+    : [];
+  if (conflicts.length === 0 && blockHits.length === 0 && closeHits.length === 0) return;
   const alternatives = findAlternativeRooms(
     reservations,
     input.roomId,
     input.checkIn,
     input.checkOut,
+    roomList,
+    blocks,
+    saleCloses,
   );
   throw new OverbookingError(
-    "OVERBOOKING: já existe reserva ativa neste quarto e período. A inserção foi recusada.",
+    closeHits.length
+      ? "Venda fechada neste tipo e período. A inserção foi recusada."
+      : blockHits.length
+        ? "Este quarto está bloqueado neste período. A inserção foi recusada."
+        : "OVERBOOKING: já existe reserva ativa neste quarto e período. A inserção foi recusada.",
     conflicts,
     alternatives,
   );

@@ -221,16 +221,33 @@ export const pullPublicStayFn = createServerFn({ method: "GET" }).handler(async 
   const vault = await loadVault(sql);
   const pendings = await loadPendingReservations(sql);
   const occupancy = occupancyOf(
-    appendWithoutOverbooking(vault?.reservations ?? [], pendings.reservations),
+    appendWithoutOverbooking(
+      vault?.reservations ?? [],
+      pendings.reservations,
+      vault?.blocks ?? [],
+      vault?.saleCloses ?? [],
+      (roomId) => (vault?.rooms ?? []).find((room) => room.id === roomId)?.type,
+    ),
   );
   const payload: PublicStayPayload = {
     hasVault: Boolean(vault),
     rooms: vault?.rooms ?? [],
     occupancy,
+    blocks: vault?.blocks ?? [],
+    saleCloses: vault?.saleCloses ?? null,
     property: vault?.property ?? null,
-    booking: vault?.booking ?? null,
+    booking: vault?.booking
+      ? {
+          ...vault.booking,
+          checkInTime: vault.property?.checkInTime ?? vault.booking.checkInTime,
+          checkOutTime: vault.property?.checkOutTime ?? vault.booking.checkOutTime,
+          cancellationPolicy:
+            vault.property?.cancellationPolicy ?? vault.booking.cancellationPolicy,
+        }
+      : null,
     rates: vault?.rates ?? null,
     offers: vault?.offers ?? null,
+    roomTypes: vault?.roomTypes ?? null,
   };
   return payload;
 });
@@ -328,11 +345,17 @@ export const submitPublicBookingFn = createServerFn({ method: "POST" })
       throw new Error("Quarto não encontrado");
     }
     const known = mergeReservations(vault?.reservations ?? [], pendings.reservations);
-    assertNoOverbooking(known, {
-      roomId: data.roomId,
-      checkIn: data.checkIn,
-      checkOut: data.checkOut,
-    });
+    assertNoOverbooking(
+      known,
+      {
+        roomId: data.roomId,
+        checkIn: data.checkIn,
+        checkOut: data.checkOut,
+      },
+      vault?.blocks ?? [],
+      vault?.saleCloses ?? [],
+      roomList,
+    );
     const duplicate = known.find((row) => row.id === data.id);
     if (duplicate) {
       const sameStay =
@@ -430,9 +453,12 @@ export const submitPublicBookingFn = createServerFn({ method: "POST" })
         hotelName: property?.name ?? "Hotel Aurora",
         address: property?.address ?? "",
         phone: property?.phone ?? "",
-        checkInTime: booking?.checkInTime ?? property?.checkInTime ?? "14:00",
-        checkOutTime: booking?.checkOutTime ?? property?.checkOutTime ?? "12:00",
-        cancellationPolicy: booking?.cancellationPolicy ?? "Cancelamento conforme política da casa.",
+        checkInTime: property?.checkInTime ?? booking?.checkInTime ?? "14:00",
+        checkOutTime: property?.checkOutTime ?? booking?.checkOutTime ?? "12:00",
+        cancellationPolicy:
+          property?.cancellationPolicy ??
+          booking?.cancellationPolicy ??
+          "Cancelamento conforme política da casa.",
         reservationId: reservation.id,
         heading: voucherHeading(reservation.status),
         guestName: reservation.guestName,

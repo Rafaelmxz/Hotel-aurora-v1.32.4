@@ -57,7 +57,7 @@
   --timeline-day: 4.35rem;
   --timeline-head: 3.5rem;
   --timeline-row: 4rem;
-  --timeline-max-h: min(40rem, calc(100dvh - 14rem));
+  --timeline-max-h: min(40rem, calc(100dvh - 6rem));
 
 }
 
@@ -114,13 +114,13 @@
 }
 
 .timeline-map {
-  --timeline-sidebar: 11.5rem;
+  --timeline-sidebar: 8.5rem;
   --timeline-day: 4.5rem;
-  --timeline-head: 3.5rem;
-  --timeline-lane: 2.75rem;
-  --timeline-row-pad: 0.35rem;
+  --timeline-head: 2.75rem;
+  --timeline-lane: 2.15rem;
+  --timeline-row-pad: 0.2rem;
   --timeline-row: calc(var(--timeline-row-pad) * 2 + var(--timeline-lane));
-  --timeline-max-h: min(40rem, calc(100dvh - 14rem));
+  --timeline-max-h: calc(100dvh - 8rem);
 }
 
 .timeline-scroll {
@@ -147,6 +147,39 @@
   background-clip: padding-box;
 }
 
+.timeline-block-bar {
+  background: repeating-linear-gradient(
+    -52deg,
+    #4a4743 0 7px,
+    #2e2c29 7px 14px
+  );
+  color: #f4f1ec;
+}
+
+.timeline-block-swatch {
+  background: repeating-linear-gradient(
+    -52deg,
+    #4a4743 0 3px,
+    #2e2c29 3px 6px
+  );
+}
+
+.timeline-closed-cell {
+  background: repeating-linear-gradient(
+    45deg,
+    color-mix(in oklab, var(--color-muted) 55%, transparent) 0 6px,
+    transparent 6px 12px
+  );
+}
+
+.timeline-closed-swatch {
+  background: repeating-linear-gradient(
+    45deg,
+    #8a8178 0 3px,
+    transparent 3px 6px
+  );
+}
+
 .pending-scroll {
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
@@ -159,11 +192,11 @@
 
 @media (max-width: 640px) {
   .timeline-map {
-    --timeline-sidebar: 7.5rem;
+    --timeline-sidebar: 5.5rem;
     --timeline-day: 3.15rem;
-    --timeline-head: 3.25rem;
-    --timeline-lane: 2.6rem;
-    --timeline-row-pad: 0.3rem;
+    --timeline-head: 2.5rem;
+    --timeline-lane: 2rem;
+    --timeline-row-pad: 0.15rem;
     --timeline-row: calc(var(--timeline-row-pad) * 2 + var(--timeline-lane));
   }
 }

@@ -6,7 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useProperty, useSaveProperty } from "./useProperty";
 import type { OverbookingMode, PropertyProfile } from "./propertyStore";
+import { alignCancellationPolicy } from "./propertyStore";
 import { EmailOutbox } from "./EmailOutbox";
+import { RoomTypeEditor } from "@/features/rooms/RoomTypeEditor";
+import { InventoryHoldsPanel } from "./InventoryHoldsPanel";
 
 export function HotelSettingsView() {
   const { data } = useProperty();
@@ -120,32 +123,65 @@ export function HotelSettingsView() {
         </section>
 
         <section className="grid gap-4 rounded-xl bg-card p-5 shadow-[var(--shadow-border)]">
-          <h2 className="font-display text-xl font-medium tracking-tight">Operação</h2>
+          <h2 className="font-display text-xl font-medium tracking-tight">Horários e cancelamento</h2>
+          <p className="text-sm text-muted-foreground">
+            Vale no site, no voucher e na ficha da reserva. Não muda preço.
+          </p>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">
-              <Label>Check-in padrão</Label>
+              <Label htmlFor="check-in-time">Check-in</Label>
               <Input
+                id="check-in-time"
                 type="time"
                 value={form.checkInTime}
                 onChange={(event) => patch("checkInTime", event.target.value)}
               />
             </div>
             <div className="grid gap-2">
-              <Label>Check-out padrão</Label>
+              <Label htmlFor="check-out-time">Check-out</Label>
               <Input
+                id="check-out-time"
                 type="time"
                 value={form.checkOutTime}
                 onChange={(event) => patch("checkOutTime", event.target.value)}
               />
             </div>
           </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor="late">Tolerância na saída (minutos)</Label>
+              <Input
+                id="late"
+                inputMode="numeric"
+                value={String(form.lateCheckoutMinutes)}
+                onChange={(event) => patch("lateCheckoutMinutes", Number(event.target.value) || 0)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="cancel-hours">Cancelamento gratuito até (horas antes)</Label>
+              <Input
+                id="cancel-hours"
+                inputMode="numeric"
+                value={String(form.cancelFreeHours)}
+                onChange={(event) => {
+                  const hours = Number(event.target.value) || 0;
+                  setForm((current) => ({
+                    ...current,
+                    cancelFreeHours: hours,
+                    cancellationPolicy: alignCancellationPolicy(current.cancellationPolicy, hours),
+                  }));
+                }}
+              />
+            </div>
+          </div>
           <div className="grid gap-2">
-            <Label htmlFor="late">Tolerância de atraso na saída (minutos)</Label>
-            <Input
-              id="late"
-              inputMode="numeric"
-              value={String(form.lateCheckoutMinutes)}
-              onChange={(event) => patch("lateCheckoutMinutes", Number(event.target.value) || 0)}
+            <Label htmlFor="cancel-policy">Texto da regra (hóspede)</Label>
+            <Textarea
+              id="cancel-policy"
+              rows={3}
+              maxLength={400}
+              value={form.cancellationPolicy}
+              onChange={(event) => patch("cancellationPolicy", event.target.value)}
             />
           </div>
           <div className="grid gap-2">
@@ -179,6 +215,8 @@ export function HotelSettingsView() {
           Salvar propriedade
         </Button>
       </form>
+      <InventoryHoldsPanel />
+      <RoomTypeEditor />
       <EmailOutbox />
     </div>
   );

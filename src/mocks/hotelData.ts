@@ -34,6 +34,15 @@ export type Room = {
   nightlyRate: number;
 };
 
+export type GuestFnrh = {
+  document: string;
+  birthDate: string;
+  nationality: string;
+  profession: string;
+  originCity: string;
+  nextCity: string;
+};
+
 export type Reservation = {
   id: string;
   roomId: string;
@@ -48,9 +57,12 @@ export type Reservation = {
   origin: string;
   createdAt?: string;
   notes?: string;
+  holdUntil?: string;
+  guestPhone?: string;
   actualCheckInAt?: string;
   actualCheckOutAt?: string;
   receptionNotes?: string;
+  fnrh?: GuestFnrh;
 };
 
 export type MonthlyMetric = {

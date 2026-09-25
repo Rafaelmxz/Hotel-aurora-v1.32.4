@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { RoomType } from "@/mocks/hotelData";
-import { reservationKeys, repriceOpenReservations } from "@/features/reservations/reservationStore";
+import { reservationKeys } from "@/features/reservations/reservationStore";
 import { folioKeys } from "@/features/reservations/folioStore";
 import {
   addPackage,
@@ -55,7 +55,6 @@ export function usePromos() {
 }
 
 async function syncReservations(queryClient: ReturnType<typeof useQueryClient>) {
-  repriceOpenReservations();
   await persistVault();
   await queryClient.invalidateQueries({ queryKey: reservationKeys.all });
   await queryClient.invalidateQueries({ queryKey: folioKeys.all });
@@ -66,7 +65,7 @@ export function usePatchCategoryRate() {
   return useMutation({
     mutationFn: async (input: {
       type: RoomType;
-    } & Partial<Pick<CategoryRate, "weekday" | "weekend" | "weekdayRate" | "weekendRate">>) =>
+    } & Partial<Pick<CategoryRate, "weekday" | "weekend" | "weekdayRate" | "weekendRate" | "sitePercent">>) =>
       patchCategoryRate(input.type, input),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: rateKeys.all });

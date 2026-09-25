@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CaixaRouteImport } from './routes/caixa'
 import { Route as CalendarioRouteImport } from './routes/calendario'
+import { Route as CasaRouteImport } from './routes/casa'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as EquipeRouteImport } from './routes/equipe'
 import { Route as GovernancaRouteImport } from './routes/governanca'
@@ -40,6 +41,11 @@ const CaixaRoute = CaixaRouteImport.update({
 const CalendarioRoute = CalendarioRouteImport.update({
   id: '/calendario',
   path: '/calendario',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CasaRoute = CasaRouteImport.update({
+  id: '/casa',
+  path: '/casa',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
@@ -117,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/caixa': typeof CaixaRoute
   '/calendario': typeof CalendarioRoute
+  '/casa': typeof CasaRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/equipe': typeof EquipeRoute
   '/governanca': typeof GovernancaRoute
@@ -136,6 +143,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/caixa': typeof CaixaRoute
   '/calendario': typeof CalendarioRoute
+  '/casa': typeof CasaRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/equipe': typeof EquipeRoute
   '/governanca': typeof GovernancaRoute
@@ -156,6 +164,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/caixa': typeof CaixaRoute
   '/calendario': typeof CalendarioRoute
+  '/casa': typeof CasaRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/equipe': typeof EquipeRoute
   '/governanca': typeof GovernancaRoute
@@ -177,6 +186,7 @@ export interface FileRouteTypes {
     | '/'
     | '/caixa'
     | '/calendario'
+    | '/casa'
     | '/configuracoes'
     | '/equipe'
     | '/governanca'
@@ -196,6 +206,7 @@ export interface FileRouteTypes {
     | '/'
     | '/caixa'
     | '/calendario'
+    | '/casa'
     | '/configuracoes'
     | '/equipe'
     | '/governanca'
@@ -215,6 +226,7 @@ export interface FileRouteTypes {
     | '/'
     | '/caixa'
     | '/calendario'
+    | '/casa'
     | '/configuracoes'
     | '/equipe'
     | '/governanca'
@@ -235,6 +247,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CaixaRoute: typeof CaixaRoute
   CalendarioRoute: typeof CalendarioRoute
+  CasaRoute: typeof CasaRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
   EquipeRoute: typeof EquipeRoute
   GovernancaRoute: typeof GovernancaRoute
@@ -271,6 +284,13 @@ declare module '@tanstack/react-router' {
       path: '/calendario'
       fullPath: '/calendario'
       preLoaderRoute: typeof CalendarioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/casa': {
+      id: '/casa'
+      path: '/casa'
+      fullPath: '/casa'
+      preLoaderRoute: typeof CasaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/configuracoes': {
@@ -390,6 +410,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CaixaRoute: CaixaRoute,
   CalendarioRoute: CalendarioRoute,
+  CasaRoute: CasaRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
   EquipeRoute: EquipeRoute,
   GovernancaRoute: GovernancaRoute,

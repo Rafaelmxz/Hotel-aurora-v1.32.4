@@ -4,14 +4,18 @@ import {
   TODAY,
   TODAY_ISO,
   toISODate,
+  type GuestFnrh,
   type Reservation,
   type ReservationStatus,
 } from "@/mocks/hotelData";
 import { addDays } from "date-fns";
-import { quoteStay } from "@/features/rates/pricing";
+import { quoteStay, type QuoteOptions } from "@/features/rates/pricing";
 import { assertValidEmail } from "@/lib/email";
 import { assertValidPeriod } from "@/lib/hotel/rules";
 import { assertNoOverbooking, availableRoomsByType } from "./overbooking";
+import { listBlocks } from "./blockStore";
+import { listSaleCloses } from "./saleCloseStore";
+import { assertTypeHoldsParty } from "@/features/rooms/roomTypeStore";
 
 export const reservationKeys = {
   all: ["reservations"] as const,
@@ -30,15 +34,6 @@ function applyQuote(reservation: Reservation): Reservation {
   };
 }
 
-export function repriceOpenReservations(): void {
-  store = store.map((row) => {
-    if (row.status === "cancelada" || row.status === "check-out") return row;
-    return applyQuote(row);
-  });
-}
-
-repriceOpenReservations();
-
 export function listReservations(): Reservation[] {
   return store.map((row) => ({ ...row }));
 }
@@ -53,6 +48,10 @@ export type ReservationPatch = {
   actualCheckInAt?: string;
   actualCheckOutAt?: string;
   receptionNotes?: string;
+  roomId?: string;
+  checkIn?: string;
+  checkOut?: string;
+  fnrh?: GuestFnrh;
 };
 
 export function patchReservation(id: string, patch: ReservationPatch): Reservation {
@@ -60,7 +59,10 @@ export function patchReservation(id: string, patch: ReservationPatch): Reservati
   if (index < 0) {
     throw new Error("Reserva não encontrada");
   }
-  const next: Reservation = { ...store[index]!, ...patch };
+  let next: Reservation = { ...store[index]!, ...patch };
+  if (patch.roomId || patch.checkIn || patch.checkOut) {
+    next = applyQuote(next);
+  }
   store = [...store.slice(0, index), next, ...store.slice(index + 1)];
   return { ...next };
 }
@@ -69,10 +71,11 @@ export function quoteNewReservation(
   roomId: string,
   checkIn: string,
   checkOut: string,
+  options: QuoteOptions = {},
 ) {
   const room = roomById(roomId);
   if (!room) throw new Error("Quarto não encontrado");
-  return quoteStay(room.type, checkIn, checkOut);
+  return quoteStay(room.type, checkIn, checkOut, options);
 }
 
 let createSeq = store.length + 1;
@@ -97,30 +100,54 @@ export function createReservation(input: {
   allowOverbooking?: boolean;
   id?: string;
   guests?: number;
+  adults?: number;
+  children?: number;
+  guestPhone?: string;
+  holdUntil?: string;
+  pix?: boolean;
 }): Reservation {
   const room = roomById(input.roomId);
   if (!room) throw new Error("Quarto não encontrado");
+  const children = Math.max(0, input.children ?? 0);
+  const adults = Math.max(1, input.adults ?? input.guests ?? 1);
+  if ((input.origin ?? "Balcão") === "Link público") {
+    assertTypeHoldsParty(room.type, adults, children);
+  }
   assertValidPeriod(input.checkIn, input.checkOut);
-  assertNoOverbooking(store, {
-    roomId: input.roomId,
-    checkIn: input.checkIn,
-    checkOut: input.checkOut,
+  assertNoOverbooking(
+    store,
+    {
+      roomId: input.roomId,
+      checkIn: input.checkIn,
+      checkOut: input.checkOut,
+    },
+    listBlocks(),
+    listSaleCloses(),
+  );
+  const publicStay = (input.origin ?? "Balcão") === "Link público";
+  const quote = quoteStay(room.type, input.checkIn, input.checkOut, {
+    adults,
+    children,
+    segment: publicStay ? "site" : "balcao",
+    pix: publicStay ? Boolean(input.pix) : false,
   });
-  const quote = quoteStay(room.type, input.checkIn, input.checkOut);
+  const email = input.guestEmail.trim();
   const reservation: Reservation = {
     id: input.id ?? newStayId(),
     roomId: input.roomId,
     guestName: input.guestName.trim(),
-    guestEmail: assertValidEmail(input.guestEmail),
+    guestEmail: email ? assertValidEmail(email) : "",
     guests: Math.max(1, input.guests ?? 1),
     checkIn: input.checkIn,
     checkOut: input.checkOut,
     status: input.status ?? "confirmada",
     nightlyRate: quote.averageNight,
     totalAmount: quote.total,
-    origin: input.origin ?? "Direto",
+    origin: input.origin ?? "Balcão",
     createdAt: TODAY_ISO,
     notes: input.notes,
+    guestPhone: input.guestPhone?.trim() || undefined,
+    holdUntil: input.holdUntil,
   };
   createSeq += 1;
   store = [...store, reservation];
@@ -136,7 +163,7 @@ function seedPublicPending() {
   const checkOut = toISODate(addDays(TODAY, 3));
   const checkOutB = toISODate(addDays(TODAY, 2));
   const checkOutC = toISODate(addDays(TODAY, 4));
-  const grouped = availableRoomsByType(store, checkIn, checkOut);
+  const grouped = availableRoomsByType(store, checkIn, checkOut, undefined, listBlocks(), listSaleCloses());
   const rooms = Object.values(grouped).flat();
   const extras = [
     { id: "res-link-demo", name: "Rafael Cruz", email: "rafael.cruz@email.com", out: checkOut },

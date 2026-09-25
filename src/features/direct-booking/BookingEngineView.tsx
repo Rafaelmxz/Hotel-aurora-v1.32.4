@@ -17,9 +17,9 @@ export function BookingEngineView() {
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            Página pública
+            Configuração
           </p>
-          <h1 className="font-display text-3xl font-medium tracking-tight">Site</h1>
+          <h1 className="font-display text-3xl font-medium tracking-tight">Motor de reservas</h1>
           <p className="text-sm text-muted-foreground">
             Página do {property.name} para o hóspede reservar sozinho.
           </p>
@@ -47,12 +47,17 @@ export function BookingEngineView() {
         <dd className="sm:text-right">
           {config.checkInTime} / {config.checkOutTime}
         </dd>
+        <dt className="text-muted-foreground">Cancelamento gratuito</dt>
+        <dd className="sm:text-right">{property.cancelFreeHours}h antes</dd>
         <dt className="text-muted-foreground">Pix</dt>
         <dd className="sm:text-right">{config.pixKey}</dd>
         <dt className="text-muted-foreground">Sinal</dt>
         <dd className="sm:text-right">{config.depositPercent}%</dd>
         <dt className="text-muted-foreground">Cancelamento</dt>
-        <dd className="sm:col-span-2">{config.cancellationPolicy}</dd>
+        <dd className="sm:col-span-2">
+          {property.cancellationPolicy}{" "}
+          <span className="text-muted-foreground">Editar em Hotel.</span>
+        </dd>
         <dt className="text-muted-foreground">Experiências</dt>
         <dd className="sm:col-span-2">
           {(config.extras ?? []).filter((item) => item.enabled).length

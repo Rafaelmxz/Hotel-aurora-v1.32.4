@@ -21,6 +21,9 @@ import { replaceOffers, listOffers } from "@/features/rates/offerStore";
 import { replaceCashCloses, listCashCloses } from "@/features/finance/cashStore";
 import { dumpStaff, replaceStaff } from "@/features/users/userStore";
 import { listGuests } from "@/features/guests/guestStore";
+import { listBlocks, replaceBlocks } from "@/features/reservations/blockStore";
+import { listSaleCloses, replaceSaleCloses } from "@/features/reservations/saleCloseStore";
+import { listRoomTypes, replaceRoomTypes } from "@/features/rooms/roomTypeStore";
 import type { Reservation } from "@/mocks/hotelData";
 import {
   VAULT_VERSION,
@@ -38,12 +41,15 @@ export function snapshotVault(): HotelVault {
     savedAt: Date.now(),
     rooms: listRooms(),
     reservations: listReservations(),
+    blocks: listBlocks(),
+    saleCloses: listSaleCloses(),
     consumos: listAllConsumos(),
     pagamentos: listAllPagamentos(),
     guests: listGuests(),
     cashCloses: listCashCloses(),
     property: getProperty(),
     booking: getBookingConfig(),
+    roomTypes: listRoomTypes(),
     rates: {
       categories: listCategoryRates(),
       seasons: listSeasons(),
@@ -58,14 +64,23 @@ export function snapshotVault(): HotelVault {
 export function applyVault(vault: HotelVault) {
   if (vault.rooms?.length) replaceRooms(vault.rooms);
   if (vault.reservations) replaceReservations(vault.reservations);
+  replaceBlocks(vault.blocks ?? []);
+  replaceSaleCloses(vault.saleCloses ?? []);
   replaceFolio({
     consumos: vault.consumos ?? [],
     pagamentos: vault.pagamentos ?? [],
   });
   if (vault.property) replaceProperty(vault.property);
   if (vault.booking) replaceBookingConfig(vault.booking);
+  if (vault.property && !vault.property.cancellationPolicy && vault.booking?.cancellationPolicy) {
+    replaceProperty({
+      ...getProperty(),
+      cancellationPolicy: vault.booking.cancellationPolicy,
+    });
+  }
   if (vault.rates) replaceRates(vault.rates);
   if (vault.offers) replaceOffers(vault.offers);
+  if (vault.roomTypes) replaceRoomTypes(vault.roomTypes);
   if (vault.cashCloses) replaceCashCloses(vault.cashCloses);
   if (vault.staff?.length) replaceStaff(vault.staff);
 }
@@ -88,10 +103,26 @@ function occupancyToReservation(row: OccupancyStay): Reservation {
 
 export function applyPublicStay(data: PublicStayPayload) {
   if (data.rooms?.length) replaceRooms(data.rooms);
-  if (data.property) replaceProperty(data.property);
+  const local = readLocalVault();
+  if (local?.property) {
+    replaceProperty(local.property);
+  } else if (data.property) {
+    replaceProperty({
+      ...data.property,
+      cancellationPolicy:
+        data.property.cancellationPolicy || data.booking?.cancellationPolicy || "",
+      checkInTime: data.property.checkInTime || data.booking?.checkInTime || "14:00",
+      checkOutTime: data.property.checkOutTime || data.booking?.checkOutTime || "12:00",
+    });
+  }
   if (data.booking) replaceBookingConfig(data.booking);
   if (data.rates) replaceRates(data.rates);
   if (data.offers) replaceOffers(data.offers);
+  if (local?.roomTypes?.length) replaceRoomTypes(local.roomTypes);
+  else if (data.roomTypes?.length) replaceRoomTypes(data.roomTypes);
+  replaceBlocks(data.blocks ?? []);
+  if (local?.saleCloses?.length) replaceSaleCloses(local.saleCloses);
+  else replaceSaleCloses(data.saleCloses ?? []);
   const stubs = data.occupancy.map(occupancyToReservation);
   if (data.hasVault) {
     replaceReservations(stubs);

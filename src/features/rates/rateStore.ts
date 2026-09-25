@@ -1,3 +1,9 @@
+/**
+ * Tarifário: grelha de ocupação (A1) + extra acima do 4.º / 2.ª (A2).
+ * Pode: 1–4 ADL, 1/2 CHD, +ADL, +CHD, segmento site (% sobre o balcão).
+ * Proibido: alimentação na grelha, gravar tarifa por dia, mais segmentos.
+ * Cofre: `categories`. Preço da noite: occupancyNightRate.
+ */
 import type { RoomType } from "@/mocks/hotelData";
 
 export const rateKeys = {
@@ -15,7 +21,40 @@ export type RateBand = {
   pax1Pensao: number;
   pax2Cafe: number;
   pax2Pensao: number;
+  adl1: number;
+  adl2: number;
+  adl3: number;
+  adl4: number;
+  chd1: number;
+  chd2: number;
+  plusAdl: number;
+  plusChd: number;
 };
+
+export const OCCUPANCY_FIELDS = [
+  "adl1",
+  "adl2",
+  "adl3",
+  "adl4",
+  "chd1",
+  "chd2",
+  "plusAdl",
+  "plusChd",
+] as const;
+export type OccupancyField = (typeof OCCUPANCY_FIELDS)[number];
+
+export const OCCUPANCY_LABEL: Record<OccupancyField, string> = {
+  adl1: "1 ADL",
+  adl2: "2 ADL",
+  adl3: "3 ADL",
+  adl4: "4 ADL",
+  chd1: "1 CHD",
+  chd2: "2 CHD",
+  plusAdl: "+ADL",
+  plusChd: "+CHD",
+};
+
+export type RateSegment = "balcao" | "site";
 
 export type CategoryRate = {
   type: RoomType;
@@ -23,6 +62,8 @@ export type CategoryRate = {
   weekend: RateBand;
   weekdayRate: number;
   weekendRate: number;
+  /** Ajuste do site sobre a grelha do balcão. 0 = igual. */
+  sitePercent: number;
 };
 
 export type SeasonModifier = "percent" | "fixed";
@@ -60,18 +101,57 @@ export type PromoCode = {
   active: boolean;
 };
 
-function band(pax1Cafe: number, pax1Pensao: number, pax2Cafe: number, pax2Pensao: number): RateBand {
-  return { pax1Cafe, pax1Pensao, pax2Cafe, pax2Pensao };
+function money(value: unknown, fallback: number) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.round(n));
 }
 
-function withLegacy(type: RoomType, weekday: RateBand, weekend: RateBand): CategoryRate {
+export function fillBand(raw: Partial<RateBand> = {}): RateBand {
+  const pax1Cafe = money(raw.pax1Cafe, 0);
+  const pax2Cafe = money(raw.pax2Cafe, pax1Cafe);
+  return {
+    pax1Cafe,
+    pax1Pensao: money(raw.pax1Pensao, pax1Cafe),
+    pax2Cafe,
+    pax2Pensao: money(raw.pax2Pensao, pax2Cafe),
+    adl1: money(raw.adl1, pax1Cafe),
+    adl2: money(raw.adl2, pax2Cafe),
+    adl3: money(raw.adl3, Math.round(pax2Cafe * 1.2)),
+    adl4: money(raw.adl4, Math.round(pax2Cafe * 1.4)),
+    chd1: money(raw.chd1, Math.max(40, Math.round(pax2Cafe * 0.12))),
+    chd2: money(raw.chd2, Math.max(70, Math.round(pax2Cafe * 0.22))),
+    plusAdl: money(raw.plusAdl, Math.max(40, Math.round(pax2Cafe * 0.15))),
+    plusChd: money(raw.plusChd, Math.max(30, Math.round(pax2Cafe * 0.1))),
+  };
+}
+
+function band(pax1Cafe: number, pax1Pensao: number, pax2Cafe: number, pax2Pensao: number): RateBand {
+  return fillBand({ pax1Cafe, pax1Pensao, pax2Cafe, pax2Pensao });
+}
+
+function withLegacy(
+  type: RoomType,
+  weekday: RateBand,
+  weekend: RateBand,
+  sitePercent = 0,
+): CategoryRate {
+  const week = fillBand(weekday);
+  const end = fillBand(weekend);
   return {
     type,
-    weekday,
-    weekend,
-    weekdayRate: weekday.pax2Cafe,
-    weekendRate: weekend.pax2Cafe,
+    weekday: week,
+    weekend: end,
+    weekdayRate: week.adl2,
+    weekendRate: end.adl2,
+    sitePercent: clampSitePercent(sitePercent),
   };
+}
+
+export function clampSitePercent(value: unknown) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(80, Math.max(-80, Math.round(n)));
 }
 
 const CATEGORY_SEED: CategoryRate[] = [
@@ -169,8 +249,8 @@ let promoSeq = promos.length + 1;
 export function listCategoryRates(): CategoryRate[] {
   return categories.map((row) => ({
     ...row,
-    weekday: { ...row.weekday },
-    weekend: { ...row.weekend },
+    weekday: fillBand(row.weekday),
+    weekend: fillBand(row.weekend),
   }));
 }
 
@@ -180,7 +260,9 @@ export function replaceRates(next: {
   packages: SpecialPackage[];
   promos: PromoCode[];
 }) {
-  categories = next.categories.map((row) => withLegacy(row.type, row.weekday, row.weekend));
+  categories = next.categories.map((row) =>
+    withLegacy(row.type, row.weekday, row.weekend, row.sitePercent),
+  );
   seasons = next.seasons.map((row) => ({ ...row }));
   packages = next.packages.map((row) => ({ ...row }));
   promos = next.promos.map((row) => ({ ...row }));
@@ -193,25 +275,50 @@ export function pickNightRate(
   category: CategoryRate,
   weekend: boolean,
   pax: PaxCount,
-  meal: MealPlan,
+  _meal: MealPlan,
 ) {
-  const band = weekend ? category.weekend : category.weekday;
-  if (pax === 1) return meal === "pensao" ? band.pax1Pensao : band.pax1Cafe;
-  return meal === "pensao" ? band.pax2Pensao : band.pax2Cafe;
+  return occupancyNightRate(category, weekend, pax, 0);
+}
+
+export function occupancyNightRate(
+  category: CategoryRate,
+  weekend: boolean,
+  adults: number,
+  children: number,
+) {
+  const band = fillBand(weekend ? category.weekend : category.weekday);
+  const a = Math.max(1, Math.round(adults) || 1);
+  const c = Math.max(0, Math.round(children) || 0);
+  const adl = a <= 1 ? band.adl1 : a === 2 ? band.adl2 : a === 3 ? band.adl3 : band.adl4;
+  const extraAdl = a > 4 ? (a - 4) * band.plusAdl : 0;
+  const chd = c <= 0 ? 0 : c === 1 ? band.chd1 : band.chd2;
+  const extraChd = c > 2 ? (c - 2) * band.plusChd : 0;
+  return adl + extraAdl + chd + extraChd;
 }
 
 export function patchCategoryRate(
   type: RoomType,
-  patch: Partial<Pick<CategoryRate, "weekday" | "weekend" | "weekdayRate" | "weekendRate">>,
+  patch: Partial<Pick<CategoryRate, "weekday" | "weekend" | "weekdayRate" | "weekendRate" | "sitePercent">>,
 ): CategoryRate {
   const index = categories.findIndex((row) => row.type === type);
   if (index < 0) throw new Error("Categoria não encontrada");
   const current = categories[index]!;
-  const weekday = { ...current.weekday, ...patch.weekday };
-  const weekend = { ...current.weekend, ...patch.weekend };
-  if (patch.weekdayRate != null) weekday.pax2Cafe = patch.weekdayRate;
-  if (patch.weekendRate != null) weekend.pax2Cafe = patch.weekendRate;
-  const next = withLegacy(type, weekday, weekend);
+  const weekday = fillBand({ ...current.weekday, ...patch.weekday });
+  const weekend = fillBand({ ...current.weekend, ...patch.weekend });
+  if (patch.weekdayRate != null) {
+    weekday.adl2 = money(patch.weekdayRate, weekday.adl2);
+    weekday.pax2Cafe = weekday.adl2;
+  }
+  if (patch.weekendRate != null) {
+    weekend.adl2 = money(patch.weekendRate, weekend.adl2);
+    weekend.pax2Cafe = weekend.adl2;
+  }
+  const next = withLegacy(
+    type,
+    weekday,
+    weekend,
+    patch.sitePercent != null ? patch.sitePercent : current.sitePercent,
+  );
   categories = [...categories.slice(0, index), next, ...categories.slice(index + 1)];
   return { ...next, weekday: { ...next.weekday }, weekend: { ...next.weekend } };
 }

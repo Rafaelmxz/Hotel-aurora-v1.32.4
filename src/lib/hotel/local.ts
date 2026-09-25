@@ -9,7 +9,7 @@ export function readLocalVault(): HotelVault | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as HotelVault;
     if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.reservations)) return null;
-    return parsed;
+    return { ...parsed, blocks: Array.isArray(parsed.blocks) ? parsed.blocks : [] };
   } catch {
     return null;
   }

@@ -1,6 +1,38 @@
 import { VAULT_VERSION, type HotelVault, type OccupancyStay } from "./types";
 import type { Reservation } from "@/mocks/hotelData";
 import type { ConsumoItem, PagamentoItem } from "@/features/reservations/types/folio";
+import type { RoomBlock } from "@/features/reservations/blockStore";
+import type { SaleClose } from "@/features/reservations/saleCloseStore";
+
+function asSaleCloses(value: unknown): SaleClose[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((row): row is SaleClose => {
+    if (!row || typeof row !== "object") return false;
+    const close = row as SaleClose;
+    return (
+      typeof close.id === "string" &&
+      typeof close.roomType === "string" &&
+      typeof close.checkIn === "string" &&
+      typeof close.checkOut === "string" &&
+      typeof close.reason === "string"
+    );
+  });
+}
+
+function asBlocks(value: unknown): RoomBlock[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((row): row is RoomBlock => {
+    if (!row || typeof row !== "object") return false;
+    const block = row as RoomBlock;
+    return (
+      typeof block.id === "string" &&
+      typeof block.roomId === "string" &&
+      typeof block.checkIn === "string" &&
+      typeof block.checkOut === "string" &&
+      typeof block.reason === "string"
+    );
+  });
+}
 
 export function isVault(value: unknown): value is HotelVault {
   if (!value || typeof value !== "object") return false;
@@ -12,7 +44,8 @@ export function parseVault(payload: string | null | undefined): HotelVault | nul
   if (!payload) return null;
   try {
     const parsed = JSON.parse(payload) as unknown;
-    return isVault(parsed) ? parsed : null;
+    if (!isVault(parsed)) return null;
+    return { ...parsed, blocks: asBlocks(parsed.blocks), saleCloses: asSaleCloses(parsed.saleCloses) };
   } catch {
     return null;
   }
@@ -33,6 +66,28 @@ export function mergeReservations(base: Reservation[], extras: Reservation[]): R
   const out = [...base];
   for (const extra of extras) {
     if (ids.has(extra.id)) continue;
+    out.push(extra);
+    ids.add(extra.id);
+  }
+  return out;
+}
+
+export function mergeBlocks(base: RoomBlock[], extras: RoomBlock[]): RoomBlock[] {
+  const ids = new Set(base.map((row) => row.id));
+  const out = [...base];
+  for (const extra of extras) {
+    if (!extra?.id || ids.has(extra.id)) continue;
+    out.push(extra);
+    ids.add(extra.id);
+  }
+  return out;
+}
+
+export function mergeSaleCloses(base: SaleClose[], extras: SaleClose[]): SaleClose[] {
+  const ids = new Set(base.map((row) => row.id));
+  const out = [...base];
+  for (const extra of extras) {
+    if (!extra?.id || ids.has(extra.id)) continue;
     out.push(extra);
     ids.add(extra.id);
   }
@@ -155,10 +210,14 @@ export function unionVaultReservations(preferred: HotelVault, other: HotelVault 
   const reservations = mergeReservations(preferred.reservations, other.reservations);
   const pagamentos = mergePagamentos(preferred.pagamentos ?? [], other.pagamentos ?? []);
   const consumos = mergeConsumos(preferred.consumos ?? [], other.consumos ?? []);
+  const blocks = mergeBlocks(preferred.blocks ?? [], other.blocks ?? []);
+  const saleCloses = mergeSaleCloses(preferred.saleCloses ?? [], other.saleCloses ?? []);
   if (
     reservations.length === preferred.reservations.length &&
     pagamentos.length === (preferred.pagamentos ?? []).length &&
-    consumos.length === (preferred.consumos ?? []).length
+    consumos.length === (preferred.consumos ?? []).length &&
+    blocks.length === (preferred.blocks ?? []).length &&
+    saleCloses.length === (preferred.saleCloses ?? []).length
   ) {
     return preferred;
   }
@@ -167,6 +226,8 @@ export function unionVaultReservations(preferred: HotelVault, other: HotelVault 
     reservations,
     pagamentos,
     consumos,
+    blocks,
+    saleCloses,
   };
 }
 

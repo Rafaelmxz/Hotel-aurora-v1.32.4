@@ -2,14 +2,19 @@ import {
   formatCurrency,
   type HousekeepingStatus,
   type Reservation,
+  type RoomType,
 } from "@/mocks/hotelData";
 import type { ConsumoItem, PagamentoItem } from "@/features/reservations/types/folio";
 import {
   assertNoOverbooking,
+  findBlockConflicts,
   findConflicts,
   findOverbookedIds,
+  findSaleCloseHits,
   isActiveStay,
 } from "@/features/reservations/overbooking";
+import type { RoomBlock } from "@/features/reservations/blockStore";
+import type { SaleClose } from "@/features/reservations/saleCloseStore";
 import { blocksCheckIn, HOUSEKEEPING_LABEL } from "@/features/rooms/housekeeping";
 import type { HotelVault } from "./types";
 
@@ -54,34 +59,64 @@ export function assertValidPeriod(checkIn: string, checkOut: string) {
 export function assertNoOverbookingSnapshot(
   reservations: Reservation[],
   previous?: Reservation[],
+  blocks: RoomBlock[] = [],
+  previousBlocks: RoomBlock[] = [],
 ) {
   const ids = findOverbookedIds(reservations);
-  if (ids.size === 0) return;
-  if (previous) {
-    const prevIds = findOverbookedIds(previous);
-    const introduced = [...ids].some((id) => !prevIds.has(id));
-    if (!introduced) return;
+  if (ids.size > 0) {
+    if (previous) {
+      const prevIds = findOverbookedIds(previous);
+      const introduced = [...ids].some((id) => !prevIds.has(id));
+      if (introduced) {
+        throw new HotelRuleError(
+          "Não é possível ocupar o mesmo quarto nas mesmas noites.",
+          "OVERBOOKING",
+        );
+      }
+    } else {
+      throw new HotelRuleError(
+        "Não é possível ocupar o mesmo quarto nas mesmas noites.",
+        "OVERBOOKING",
+      );
+    }
   }
-  throw new HotelRuleError(
-    "Não é possível ocupar o mesmo quarto nas mesmas noites.",
-    "OVERBOOKING",
-  );
+  for (const block of blocks) {
+    if (findConflicts(reservations, block.roomId, block.checkIn, block.checkOut).length === 0) {
+      continue;
+    }
+    const wasThere = previousBlocks.some((row) => row.id === block.id);
+    if (!wasThere) {
+      throw new HotelRuleError(
+        "Não é possível bloquear um quarto já ocupado nas mesmas noites.",
+        "OVERBOOKING",
+      );
+    }
+  }
 }
 
 /** Pendências do site que não batem com o que a recepção já gravou são descartadas. */
 export function appendWithoutOverbooking(
   base: Reservation[],
   extras: Reservation[],
+  blocks: RoomBlock[] = [],
+  saleCloses: SaleClose[] = [],
+  roomTypeOf?: (roomId: string) => RoomType | undefined,
 ): Reservation[] {
   const out = [...base];
   const ids = new Set(base.map((row) => row.id));
   for (const extra of extras) {
     if (ids.has(extra.id)) continue;
-    if (
-      isActiveStay(extra) &&
-      findConflicts(out, extra.roomId, extra.checkIn, extra.checkOut, extra.id).length > 0
-    ) {
-      continue;
+    if (isActiveStay(extra)) {
+      if (findConflicts(out, extra.roomId, extra.checkIn, extra.checkOut, extra.id).length > 0) {
+        continue;
+      }
+      if (findBlockConflicts(blocks, extra.roomId, extra.checkIn, extra.checkOut).length > 0) {
+        continue;
+      }
+      const type = roomTypeOf?.(extra.roomId);
+      if (type && findSaleCloseHits(saleCloses, type, extra.checkIn, extra.checkOut).length > 0) {
+        continue;
+      }
     }
     out.push(extra);
     ids.add(extra.id);
@@ -95,15 +130,22 @@ export function assertStayTransition(input: {
   reservations: Reservation[];
   rooms: Array<{ id: string; number: string; housekeepingStatus: HousekeepingStatus }>;
   saldo: number;
+  blocks?: RoomBlock[];
+  saleCloses?: SaleClose[];
 }) {
   assertValidPeriod(input.next.checkIn, input.next.checkOut);
   if (isActiveStay(input.next)) {
-    assertNoOverbooking(input.reservations, {
-      roomId: input.next.roomId,
-      checkIn: input.next.checkIn,
-      checkOut: input.next.checkOut,
-      id: input.next.id,
-    });
+    assertNoOverbooking(
+      input.reservations,
+      {
+        roomId: input.next.roomId,
+        checkIn: input.next.checkIn,
+        checkOut: input.next.checkOut,
+        id: input.next.id,
+      },
+      input.blocks ?? [],
+      input.saleCloses ?? [],
+    );
   }
 
   const becameCheckIn =
@@ -136,9 +178,17 @@ export function assertVaultTransition(previous: HotelVault | null, next: HotelVa
   for (const row of next.reservations) {
     assertValidPeriod(row.checkIn, row.checkOut);
   }
+  for (const row of next.blocks ?? []) {
+    assertValidPeriod(row.checkIn, row.checkOut);
+  }
   if (!previous) return;
 
-  assertNoOverbookingSnapshot(next.reservations, previous.reservations);
+  assertNoOverbookingSnapshot(
+    next.reservations,
+    previous.reservations,
+    next.blocks ?? [],
+    previous.blocks ?? [],
+  );
 
   const prevById = new Map(previous.reservations.map((row) => [row.id, row]));
   const roomsById = new Map(next.rooms.map((row) => [row.id, row]));

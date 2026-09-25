@@ -1,7 +1,10 @@
+/**
+ * Pedidos do site na recepção. No mapa: faixa compacta com rolagem.
+ * Clique abre a reserva no pop-up. Não confirma, não mexe ouro/OTA.
+ */
 import { Link } from "@tanstack/react-router";
 import type { Reservation } from "@/mocks/hotelData";
-import { Badge } from "@/components/ui/badge";
-import { STATUS_BADGE, STATUS_LABEL } from "@/features/reservations/status";
+import { STATUS_LABEL } from "@/features/reservations/status";
 import { useReservations } from "@/features/reservations/useReservations";
 import { useRooms } from "@/features/rooms/useRooms";
 
@@ -30,54 +33,43 @@ export function PendingBookingsAlert({
 
   const roomLabel = (roomId: string) => {
     const room = rooms.find((item) => item.id === roomId);
-    return room ? `${room.number} · ${room.type}` : roomId;
+    return room ? `${room.number}` : roomId;
   };
 
-  return (
-    <div className="rounded-xl bg-status-pending/10 py-3 text-sm text-status-pending">
-      <p className="px-4 font-medium">
-        {pending.length} pedido(s) do site aguardando a recepção.
-        {!map ? (
-          <>
-            {" "}
-            <Link to="/calendario" className="underline">
-              Abrir mapa da recepção
-            </Link>
-          </>
-        ) : null}
-      </p>
-      {map && onSelect ? (
-        <div className="mt-2 max-h-56 overflow-auto px-2">
-          <table className="w-full text-left text-foreground">
-            <thead className="sticky top-0 bg-status-pending/20 text-xs text-muted-foreground">
-              <tr>
-                <th className="px-2 py-1.5 font-medium">Hóspede</th>
-                <th className="px-2 py-1.5 font-medium">Quarto</th>
-                <th className="px-2 py-1.5 font-medium">Datas</th>
-                <th className="px-2 py-1.5 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pending.map((row) => (
-                <tr
-                  key={row.id}
-                  className="cursor-pointer border-t border-border/50 hover:bg-card/80"
-                  onClick={() => onSelect(row)}
-                >
-                  <td className="px-2 py-1.5 font-medium">{row.guestName}</td>
-                  <td className="px-2 py-1.5 text-muted-foreground">{roomLabel(row.roomId)}</td>
-                  <td className="px-2 py-1.5 tabular-nums text-muted-foreground">
-                    {row.checkIn} → {row.checkOut}
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <Badge variant={STATUS_BADGE[row.status]}>{STATUS_LABEL[row.status]}</Badge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+  if (map && onSelect) {
+    return (
+      <div className="flex max-h-16 items-stretch gap-2 overflow-hidden rounded-lg bg-status-pending/10 px-2 py-1 text-status-pending">
+        <p className="flex shrink-0 items-center text-xs font-medium">
+          {pending.length} pedidos
+        </p>
+        <div className="pending-scroll flex min-h-0 min-w-0 flex-1 flex-col flex-wrap content-start gap-1 overflow-x-auto overflow-y-auto">
+          {pending.map((row) => (
+            <button
+              key={row.id}
+              type="button"
+              onClick={() => onSelect(row)}
+              className="h-6 shrink-0 rounded-md bg-card px-2 text-left text-xs text-foreground"
+              title={`${row.guestName} · ${roomLabel(row.roomId)} · ${row.checkIn}`}
+            >
+              {row.guestName}
+              <span className="ml-1 text-muted-foreground">
+                {roomLabel(row.roomId)} · {STATUS_LABEL[row.status]}
+              </span>
+            </button>
+          ))}
         </div>
-      ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl bg-status-pending/10 px-4 py-3 text-sm text-status-pending">
+      <p className="font-medium">
+        {pending.length} pedido(s) do site aguardando a recepção.{" "}
+        <Link to="/calendario" className="underline">
+          Abrir mapa da recepção
+        </Link>
+      </p>
     </div>
   );
 }

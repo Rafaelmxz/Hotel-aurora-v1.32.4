@@ -2,7 +2,7 @@
 
 Objetivo: **não reler o repositório**. Abra 1–3 arquivos da tabela. Se o tema não estiver aqui, ele ainda não existe.
 
-Produto: Hotel Aurora PMS v1.32.4  
+Produto: Hotel Aurora PMS v1.32.25  
 Repo: https://github.com/Rafaelmxz/Hotel-aurora-v1.32.4
 
 ---
@@ -54,6 +54,8 @@ Preço, conflito e status **não** nascem na view. Nascem no store ou em `src/li
 | Assunto | Arquivo |
 |---|---|
 | Timeline / faixas / arraste | `src/features/reservations/Timeline.tsx` |
+| Bloqueio de quarto (não é reserva) | `src/features/reservations/blockStore.ts` + `BlockRoomModal.tsx` |
+| Fechar venda por data (tipo) | `src/features/reservations/saleCloseStore.ts` + `CloseSaleModal.tsx` |
 | Hook do arraste | `src/lib/useDragScroll.ts` |
 | Página do mapa | `src/features/reservations/CalendarPage.tsx` |
 | Ficha / check-in | `src/features/reservations/CheckInModal.tsx` |
@@ -68,7 +70,7 @@ Preço, conflito e status **não** nascem na view. Nascem no store ou em `src/li
 ### Preço
 | Assunto | Arquivo |
 |---|---|
-| `quoteStay` / weekday / temporada / cupom | `src/features/rates/pricing.ts` |
+| `quoteStay` / ocupação ADL+CHD / temporada | `src/features/rates/pricing.ts` + `rateStore.ts` |
 | Tarifas | `src/features/rates/rateStore.ts` + `RateManagementView.tsx` |
 | Ofertas | `src/features/rates/offerStore.ts` + `OffersView.tsx` |
 | Pacotes / cupons | `src/features/rates/PackagesView.tsx` / `PromoCodesView.tsx` |
@@ -77,15 +79,20 @@ Preço, conflito e status **não** nascem na view. Nascem no store ou em `src/li
 | Assunto | Arquivo |
 |---|---|
 | Quartos | `src/features/rooms/roomStore.ts` |
+| Tipo de quarto (foto / ocupação) | `src/features/rooms/roomTypeStore.ts` + `RoomTypeEditor.tsx` |
 | Limpeza | `src/features/rooms/HousekeepingView.tsx` + `housekeeping.ts` |
+| Casa (in-house) | `src/features/rooms/HouseMapView.tsx` (cor, visto, seta, recado) |
 
 ### Hotel, equipe, caixa
 | Assunto | Arquivo |
 |---|---|
-| Propriedade / Pix / e-mails | `src/features/settings/propertyStore.ts` + `HotelSettingsView.tsx` |
+| Propriedade / horários / cancelamento | `src/features/settings/propertyStore.ts` + `HotelSettingsView.tsx` |
+| Bloqueio e fechar venda (cadastro Hotel) | `src/features/settings/InventoryHoldsPanel.tsx` |
 | Equipe / PIN / cargos | `src/features/users/` (`roles.ts`, `userStore.ts`, `LoginView.tsx`) |
 | Caixa | `src/features/finance/cashStore.ts` + `DailyCashRegister.tsx` |
 | Início | `src/features/dashboard/DashboardView.tsx` + `useDashboardData.ts` |
+| Menu da equipe | `src/features/layout/AppShell.tsx` |
+| Pop-up no mapa | `src/features/reservations/OnMapDialog.tsx` |
 
 ### Cofre e servidor
 | Assunto | Arquivo |
@@ -97,7 +104,7 @@ Preço, conflito e status **não** nascem na view. Nascem no store ou em `src/li
 | Versão | `src/lib/version.ts` |
 
 ### Rotas
-`/`, `/calendario`, `/reservas`, `/ocupacao`, `/governanca`, `/caixa`, `/tarifas`, `/hospedes`, `/relatorios`, `/reservas-diretas`, `/reservar`, `/configuracoes`, `/equipe`, `/login`
+`/`, `/calendario`, `/casa`, `/reservas`, `/ocupacao`, `/governanca`, `/caixa`, `/tarifas`, `/hospedes`, `/relatorios`, `/reservas-diretas`, `/reservar`, `/configuracoes`, `/equipe`, `/login`
 
 ---
 
