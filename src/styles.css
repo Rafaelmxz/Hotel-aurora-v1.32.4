@@ -1,0 +1,213 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", "Times New Roman", serif;
+
+  --color-background: #f4f1ec;
+  --color-foreground: #1a1916;
+  --color-card: #fbf9f5;
+  --color-card-foreground: #1a1916;
+  --color-popover: #fffcf8;
+  --color-popover-foreground: #1a1916;
+  --color-primary: #2f5454;
+  --color-primary-foreground: #f4f1ec;
+  --color-secondary: #ece7df;
+  --color-secondary-foreground: #1a1916;
+  --color-muted: #ebe6de;
+  --color-muted-foreground: #6b6560;
+  --color-accent: #e4eeea;
+  --color-accent-foreground: #243f3f;
+  --color-destructive: #8f3d32;
+  --color-destructive-foreground: #f4f1ec;
+  --color-border: #ddd6cc;
+  --color-input: #ddd6cc;
+  --color-ring: #2f5454;
+
+  --color-status-pending: #9a4a24;
+  --color-status-pending-fg: #fbf6f0;
+  --color-status-confirmed: #2f5454;
+  --color-status-confirmed-fg: #f4f1ec;
+  --color-status-checkin: #1a1916;
+  --color-status-checkin-fg: #f4f1ec;
+  --color-status-checkout: #3d5c4e;
+  --color-status-checkout-fg: #f4f1ec;
+  --color-status-cancelled: #8a847c;
+  --color-status-cancelled-fg: #f4f1ec;
+
+  --color-chart-revenue: #2f5454;
+  --color-chart-occupancy: #1a1916;
+  --color-weekend: #efe8dc;
+  --color-today: #e4eeea;
+
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius: 12px;
+
+  --shadow-border:
+    0 0 0 1px rgb(26 25 22 / 0.06),
+    0 1px 2px -1px rgb(26 25 22 / 0.06),
+    0 2px 4px 0 rgb(26 25 22 / 0.04);
+
+  --timeline-sidebar: 10.5rem;
+  --timeline-day: 4.35rem;
+  --timeline-head: 3.5rem;
+  --timeline-row: 4rem;
+  --timeline-max-h: min(40rem, calc(100dvh - 6rem));
+
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground;
+  }
+}
+
+@media print {
+  header,
+  nav,
+  [aria-label="Principal"],
+  [aria-label^="Versão"],
+  .no-print {
+    display: none !important;
+  }
+
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  .stay-voucher {
+    box-shadow: none;
+    border-radius: 0;
+  }
+}
+
+.timeline-map {
+  --timeline-sidebar: 8.5rem;
+  --timeline-day: 4.5rem;
+  --timeline-head: 2.75rem;
+  --timeline-lane: 2.15rem;
+  --timeline-row-pad: 0.2rem;
+  --timeline-row: calc(var(--timeline-row-pad) * 2 + var(--timeline-lane));
+  --timeline-max-h: calc(100dvh - 8rem);
+}
+
+.timeline-scroll {
+  scrollbar-width: auto;
+  scrollbar-color: var(--color-primary) transparent;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+}
+
+.timeline-scroll::-webkit-scrollbar {
+  height: 12px;
+  width: 12px;
+}
+
+.timeline-scroll::-webkit-scrollbar-track {
+  background: var(--color-secondary);
+  border-radius: 999px;
+}
+
+.timeline-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--color-primary) 70%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.timeline-block-bar {
+  background: repeating-linear-gradient(
+    -52deg,
+    #4a4743 0 7px,
+    #2e2c29 7px 14px
+  );
+  color: #f4f1ec;
+}
+
+.timeline-block-swatch {
+  background: repeating-linear-gradient(
+    -52deg,
+    #4a4743 0 3px,
+    #2e2c29 3px 6px
+  );
+}
+
+.timeline-closed-cell {
+  background: repeating-linear-gradient(
+    45deg,
+    color-mix(in oklab, var(--color-muted) 55%, transparent) 0 6px,
+    transparent 6px 12px
+  );
+}
+
+.timeline-closed-swatch {
+  background: repeating-linear-gradient(
+    45deg,
+    #8a8178 0 3px,
+    transparent 3px 6px
+  );
+}
+
+.pending-scroll {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+}
+
+.pending-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .timeline-map {
+    --timeline-sidebar: 5.5rem;
+    --timeline-day: 3.15rem;
+    --timeline-head: 2.5rem;
+    --timeline-lane: 2rem;
+    --timeline-row-pad: 0.15rem;
+    --timeline-row: calc(var(--timeline-row-pad) * 2 + var(--timeline-lane));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
