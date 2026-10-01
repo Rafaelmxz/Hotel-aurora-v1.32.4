@@ -78,7 +78,7 @@ Noite ocupada: check-in inclusive, check-out exclusive.
 
 **RBAC.** Admin (tudo), Gerente (sem Equipe), Recepcionista (mapa, reservas, hóspedes, caixa, site), Governança (limpeza), Financeiro (início, caixa, DRE).
 
-**PIN.** Elevação para Gerente/Admin. Demo: **1234**. Conta real (Google, X ou e-mail) assume o cargo do mesmo e-mail, sem PIN.
+**PIN.** Elevação para Gerente/Admin. PIN nasce vazio; a Equipe grava 4 dígitos. Conta real (Google, X ou e-mail) assume o cargo do mesmo e-mail, sem PIN.
 
 **Cofre.** A tela avisa; o documento do hotel recusa. Overbooking, check-in em quarto sujo/manutenção e check-out com saldo não entram no snapshot. Check-out grava o quarto sujo na mesma alteração. Pedido do site que invade uma reserva da recepção é descartado.
 

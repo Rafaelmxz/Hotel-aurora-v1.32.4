@@ -23,17 +23,18 @@ Regras:
 - Check-out bloqueado se tem saldo
 - PMS + vitrine, **sem** Booking/Airbnb nesta etapa
 - Uma fonte só de preço, vaga e reserva
-- PIN demo **1234** (Admin/Gerente); cargos atuais
+- PIN de elevação para Admin/Gerente: definido na Equipe; semente e login não criam PIN
 
 Telas e caminhos atuais (`/`, `/calendario`, `/ocupacao`, `/reservas`, `/governanca`, `/caixa`, `/tarifas`, `/hospedes`, `/relatorios`, `/reservas-diretas`, `/reservar`, `/configuracoes`, `/equipe`). Menu: Início, Mapa, Reservas, Ocupação, Hóspedes, Limpeza, Caixa, Relatórios, Tarifas, Site, Hotel, Equipe. `/ofertas` redireciona para Tarifas → Ofertas.
 
 ## Recorte desta fase
 
-**Menu lateral.**
+**PIN sem semente 1234.**
 
-Tela: barra de cima vira trilho à esquerda, ícones, `>` expande os nomes.
-Ordem: Dia (Início, Mapa) → Estadia → Casa → Contas → Config.
-Não muda: rotas, ouro, OTA, Experiências, tarifário. Site do hóspede continua sem o menu da equipe.
+Tela: login sem o aviso “PIN de elevação demo: 1234”. Equipe continua o lugar de gravar 4 dígitos.
+Regra: Ana e Elisa na semente, e admin/gerente criados pelo login, nascem sem PIN.
+Elevação para perfil sem PIN recusa e manda definir na Equipe. Login com o mesmo e-mail assume o cargo sem PIN.
+Não muda: ouro, cargos, hash do PIN, MFA, cofre, pastas.
 
 ## Teste de ouro (repetir no fim de cada fase)
 
@@ -79,6 +80,6 @@ Ideia extra vai para cá. Não entra no recorte aberto.
 5. Extra → seção C do índice (não vira `// TODO` no código)
 6. Marcar `[x]` no índice; se a tela mudou, patch em `src/lib/version.ts`
 
-**Estado:** Fase 0 travada · Fase 1–6 feitas · extra e-mail do voucher (v1.30.0) · extra **Pix QR** (v1.31.0) · correção site→mapa (v1.31.1) · mapa sem barras atravessadas (v1.31.2) · extra **adicionais no site** (v1.32.0) · extra **Experiências na vitrine** (v1.32.1) · extra **clique na pré-reserva abre o mapa nela** (v1.32.2) · aviso de pedidos sem faixa (v1.32.3) · tabela de pré-reservas no mapa (v1.32.4) · **bloqueio de quarto no mapa** (v1.32.5) · **horários e cancelamento** (v1.32.8) · **cadastro rico do tipo de quarto** (v1.32.11) · **fechar venda por data** (v1.32.12) · **Hotel bloqueio e fechar/reabrir venda** (v1.32.13) · **ficha do balcão** (v1.32.14) · **menu lateral** (v1.32.16) · **mapa compacto + arrastar reserva** (v1.32.18) · **pop-up no mapa sem sair da tela** (v1.32.20) · **tela Casa esqueleto** (v1.32.22) · **funil do motor de reservas** (v1.32.23) · **datas e banner do motor** (v1.32.24) · **grelha de ocupação A1** (v1.32.25) · **simulação = tabela** (v1.32.26) · **tarifa nova não mexe reserva feita** (v1.32.27) · **+ADL / +CHD (A2)** (v1.32.28) · **trava de capacidade na simulação e na criação** (v1.32.29) · **recepção confirma com aviso + taxa extra** (v1.32.30) · **calendário pintado A3** (v1.32.31) · **temporada pinta o mês** (v1.32.32) · **fechar venda no calendário A4** (v1.32.33) · **checkout/pagamento não fecha sozinho** (v1.32.34) · **clique no vazio do mapa cria reserva B1** (v1.32.35) · **Casa: cores + visto B2** (v1.32.36) · **Casa: seta entra/sai B3** (v1.32.37) · **Casa: recado B4** (v1.32.38) · **site mostra preço da grelha C1** (v1.32.39) · **Buscar não derruba a reserva** (v1.32.40) · **criança no 2+1 não some a vaga** (v1.32.41) · **N quartos livres C2** (v1.32.42) · **adultos no motor com 01** (v1.32.43) · **adultos sobe 1 a 1, não pula para 6** (v1.32.44) · **segmento balcão / site C3** (v1.32.45) · **pagamento do site usa a diária do site** (v1.32.46) · **FNRH no check-in C4** (v1.32.47) · **AGENTS.md única fonte de regras do recorte**. Fase 7 continua fora.
+**Estado:** Fase 0 travada · Fase 1–6 feitas · extra e-mail do voucher (v1.30.0) · extra **Pix QR** (v1.31.0) · correção site→mapa (v1.31.1) · mapa sem barras atravessadas (v1.31.2) · extra **adicionais no site** (v1.32.0) · extra **Experiências na vitrine** (v1.32.1) · extra **clique na pré-reserva abre o mapa nela** (v1.32.2) · aviso de pedidos sem faixa (v1.32.3) · tabela de pré-reservas no mapa (v1.32.4) · **bloqueio de quarto no mapa** (v1.32.5) · **horários e cancelamento** (v1.32.8) · **cadastro rico do tipo de quarto** (v1.32.11) · **fechar venda por data** (v1.32.12) · **Hotel bloqueio e fechar/reabrir venda** (v1.32.13) · **ficha do balcão** (v1.32.14) · **menu lateral** (v1.32.16) · **mapa compacto + arrastar reserva** (v1.32.18) · **pop-up no mapa sem sair da tela** (v1.32.20) · **tela Casa esqueleto** (v1.32.22) · **funil do motor de reservas** (v1.32.23) · **datas e banner do motor** (v1.32.24) · **grelha de ocupação A1** (v1.32.25) · **simulação = tabela** (v1.32.26) · **tarifa nova não mexe reserva feita** (v1.32.27) · **+ADL / +CHD (A2)** (v1.32.28) · **trava de capacidade na simulação e na criação** (v1.32.29) · **recepção confirma com aviso + taxa extra** (v1.32.30) · **calendário pintado A3** (v1.32.31) · **temporada pinta o mês** (v1.32.32) · **fechar venda no calendário A4** (v1.32.33) · **checkout/pagamento não fecha sozinho** (v1.32.34) · **clique no vazio do mapa cria reserva B1** (v1.32.35) · **Casa: cores + visto B2** (v1.32.36) · **Casa: seta entra/sai B3** (v1.32.37) · **Casa: recado B4** (v1.32.38) · **site mostra preço da grelha C1** (v1.32.39) · **Buscar não derruba a reserva** (v1.32.40) · **criança no 2+1 não some a vaga** (v1.32.41) · **N quartos livres C2** (v1.32.42) · **adultos no motor com 01** (v1.32.43) · **adultos sobe 1 a 1, não pula para 6** (v1.32.44) · **segmento balcão / site C3** (v1.32.45) · **pagamento do site usa a diária do site** (v1.32.46) · **FNRH no check-in C4** (v1.32.47) · **AGENTS.md única fonte de regras do recorte** · **PIN sem semente 1234** (v1.32.48). Fase 7 continua fora.
 
 **Próximo recorte recomendado:** um item da seção C de [INDICE.md](./INDICE.md). Fase 7 permanece fora.

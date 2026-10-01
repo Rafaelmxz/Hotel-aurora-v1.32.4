@@ -43,7 +43,6 @@ function LoginShell({ children }: { children: ReactNode }) {
             recepção. Cargos e PIN continuam na Equipe.
           </p>
         </div>
-        <p className="text-xs opacity-70">PIN de elevação demo: 1234</p>
       </section>
       <main className="grid place-items-center px-4 py-10 sm:px-8">{children}</main>
     </div>

@@ -1,4 +1,4 @@
-# Índice — Hotel Aurora PMS v1.32.47
+# Índice — Hotel Aurora PMS v1.32.48
 
 Use **antes** de abrir código. `[x]` = no produto. Não misture um `[ ]` com outro no mesmo recorte.
 
@@ -16,7 +16,7 @@ Use **antes** de abrir código. `[x]` = no produto. Não misture um `[ ]` com ou
 - [x] Folio único (diárias + consumos − pagamentos = saldo)
 - [x] Voucher na tela + e-mail + cópia em Hotel
 - [x] Cofre (F5 + documento; recusa overbooking / check-in sujo / checkout com saldo)
-- [x] Login da equipe (Google, X, e-mail) + cargos + PIN 1234
+- [x] Login da equipe (Google, X, e-mail) + cargos + PIN definido na Equipe
 - [x] Nomes da recepção: Início, Mapa, Hóspedes, Site, Hotel
 - [x] Menu lateral com ícones (recolhido / expandido)
 - [x] Channel Manager / Booking / Airbnb **fora** desta linha
@@ -100,6 +100,7 @@ Use **antes** de abrir código. `[x]` = no produto. Não misture um `[ ]` com ou
 - [ ] Analytics (GA4) — só se o hotel pedir
 
 ### Segurança
+- [x] PIN sem semente 1234 (admin/gerente nascem sem PIN; elevação manda definir na Equipe)
 - [ ] MFA
 - [ ] Política de sessão / timeout
 - [ ] Auditoria (“quem mudou o quê”)

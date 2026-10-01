@@ -64,7 +64,7 @@ npm run build
 
 Nesta versão o **cofre** guarda o hotel e recusa o que a tela não deveria deixar passar: mesmo quarto nas mesmas noites, check-in em quarto sujo/manutenção e check-out com saldo. Check-out deixa o quarto sujo. Recarregar a página (F5) mantém os dados.
 
-A recepção entra com conta real (Google, X ou e-mail). O primeiro acesso vira administrador; os próximos entram como recepção. Quem usa o mesmo e-mail da Equipe assume aquele cargo, sem PIN. Troca para **Gerente** ou **Administrador** de outro perfil exige PIN (demo: **1234**). O site do hóspede (`/reservar`) continua aberto, sem login.
+A recepção entra com conta real (Google, X ou e-mail). O primeiro acesso vira administrador; os próximos entram como recepção. Quem usa o mesmo e-mail da Equipe assume aquele cargo, sem PIN. Troca para **Gerente** ou **Administrador** de outro perfil exige PIN definido na Equipe. O site do hóspede (`/reservar`) continua aberto, sem login.
 
 ## Fluxo principal
 

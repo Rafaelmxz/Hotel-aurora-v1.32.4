@@ -1,5 +1,12 @@
+/**
+ * Equipe e PIN de elevação.
+ * Pode: semente e login criam admin/gerente sem PIN; Equipe grava 4 dígitos.
+ * Proibido: semear ou criar PIN 1234; hash (depois); MFA; timeout.
+ * Elevação recusa alvo sem PIN — mensagem manda definir na Equipe.
+ * Store: este arquivo. Sessão: setSessionUser. PIN: patchStaff na Equipe.
+ */
 import { assertValidEmail, normalizeEmail } from "@/lib/email";
-import { isPrivilegeElevation, requiresPin, type StaffRole } from "./roles";
+import { isPrivilegeElevation, type StaffRole } from "./roles";
 
 export const staffKeys = {
   all: ["staff"] as const,
@@ -31,7 +38,6 @@ const SEED: StaffUser[] = [
     email: "ana.souza@hotelaurora.com",
     role: "admin",
     status: "ativo",
-    pin: "1234",
   },
   {
     id: "usr-gerente",
@@ -39,7 +45,6 @@ const SEED: StaffUser[] = [
     email: "elisa.prado@hotelaurora.com",
     role: "gerente",
     status: "ativo",
-    pin: "1234",
   },
   {
     id: "usr-recepcao",
@@ -177,7 +182,6 @@ export function bindAuthToStaff(input: {
       name: (input.name ?? "").trim() || email.split("@")[0] || "Equipe",
       email,
       role,
-      pin: requiresPin(role) ? "1234" : undefined,
     });
     return { user: assumeStaffSession(created.id), created: true };
   } catch {
