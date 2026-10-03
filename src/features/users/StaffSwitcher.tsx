@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { isPrivilegeElevation } from "./roles";
 import { PinChallengeModal } from "./PinChallengeModal";
@@ -11,6 +11,11 @@ export function StaffSwitcher() {
   const switchStaff = useSwitchStaff();
   const [target, setTarget] = useState<StaffUser | null>(null);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    setTarget(null);
+    setError("");
+  }, [session.id]);
 
   const active = staff.filter((user) => user.status === "ativo");
 

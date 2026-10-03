@@ -7,6 +7,7 @@ import type { BookingEngineConfig } from "@/features/direct-booking/bookingStore
 import type { CategoryRate, PromoCode, Season, SpecialPackage } from "@/features/rates/rateStore";
 import type { Offer } from "@/features/rates/offerStore";
 import type { StaffUser } from "@/features/users/userStore";
+import type { AuditEvent } from "@/features/audit/auditStore";
 import type { Guest } from "@/features/guests/guestStore";
 import type { StaffRole } from "@/features/users/roles";
 import type { RoomBlock } from "@/features/reservations/blockStore";
@@ -38,6 +39,7 @@ export type HotelVault = {
   };
   offers: Offer[];
   staff: StaffUser[];
+  audit?: AuditEvent[];
 };
 
 export type OccupancyStay = {

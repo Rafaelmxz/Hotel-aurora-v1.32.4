@@ -28,6 +28,7 @@ import { canAccessPath } from "@/features/users/roles";
 import { RequirePath } from "@/features/users/RequirePermission";
 import { StaffSwitcher } from "@/features/users/StaffSwitcher";
 import { AuthStaffBridge } from "@/features/users/AuthStaffBridge";
+import { useIdleStaffTimeout } from "@/features/users/useIdleStaffTimeout";
 import { useStaffSession } from "@/features/users/useStaff";
 import { RedirectToSignIn, UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -108,6 +109,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     isLogin || pathname === "/reservar" || pathname.startsWith("/reservar/");
   const { data: property } = useProperty();
   const { data: session } = useStaffSession();
+  useIdleStaffTimeout();
   const { sessionUser } = rootRouteApi.useRouteContext();
   const { user, isPending } = useCurrentUserState();
   const authed = Boolean(user ?? sessionUser);

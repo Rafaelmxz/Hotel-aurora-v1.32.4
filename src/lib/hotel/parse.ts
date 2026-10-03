@@ -1,3 +1,4 @@
+import { mergeAudit } from "@/features/audit/auditStore";
 import { VAULT_VERSION, type HotelVault, type OccupancyStay } from "./types";
 import type { Reservation } from "@/mocks/hotelData";
 import type { ConsumoItem, PagamentoItem } from "@/features/reservations/types/folio";
@@ -212,12 +213,14 @@ export function unionVaultReservations(preferred: HotelVault, other: HotelVault 
   const consumos = mergeConsumos(preferred.consumos ?? [], other.consumos ?? []);
   const blocks = mergeBlocks(preferred.blocks ?? [], other.blocks ?? []);
   const saleCloses = mergeSaleCloses(preferred.saleCloses ?? [], other.saleCloses ?? []);
+  const audit = mergeAudit(preferred.audit, other.audit);
   if (
     reservations.length === preferred.reservations.length &&
     pagamentos.length === (preferred.pagamentos ?? []).length &&
     consumos.length === (preferred.consumos ?? []).length &&
     blocks.length === (preferred.blocks ?? []).length &&
-    saleCloses.length === (preferred.saleCloses ?? []).length
+    saleCloses.length === (preferred.saleCloses ?? []).length &&
+    audit.length === (preferred.audit ?? []).length
   ) {
     return preferred;
   }
@@ -228,6 +231,7 @@ export function unionVaultReservations(preferred: HotelVault, other: HotelVault 
     consumos,
     blocks,
     saleCloses,
+    audit,
   };
 }
 

@@ -1,4 +1,4 @@
-# Hotel Aurora PMS — descrição do sistema (v1.32.48)
+# Hotel Aurora PMS — descrição do sistema (v1.32.51)
 
 Documento de produto, arquitetura e lógica. Complementa [ARQUITETURA.md](./ARQUITETURA.md) (pastas), [FASE-0.md](./FASE-0.md) (combinado), [INDICE.md](./INDICE.md) (feito/falta) e [MAPA-ARQUITETURA.md](./MAPA-ARQUITETURA.md) (onde editar).
 
@@ -10,7 +10,7 @@ A recepção opera o hotel (mapa, ficha, casa, limpeza, caixa, tarifas, equipe).
 
 Modelo: um hotel, uma fonte de preço (grelha), uma fonte de vaga, uma fonte de reserva. Não é clone de marca.
 
-Versão atual: **1.32.48**. PIN de elevação para Gerente/Admin é definido na Equipe; semente e login não criam PIN.
+Versão atual: **1.32.51**. PIN de elevação para Gerente/Admin é definido na Equipe; o modal abre sempre vazio. Idle de 15 min derruba admin/gerente para recepção. Cookie de login não expira por esse idle. Diário operacional (`audit` no cofre) registra criar/confirmar/check-in/checkout, cargo, PIN, elevação e fechar caixa — sem tela ainda, sem prova contra DevTools.
 
 ## 2. Teste de ouro (não quebrar)
 
@@ -132,5 +132,8 @@ Mapa de casinhas do dia: livre, ocupado, pré-reserva, indisponível. Seta antes
 | 1.32.45–46 | Segmento site (desconto/acréscimo); pagamento grava o preço do site |
 | 1.32.47 | FNRH no check-in |
 | 1.32.48 | PIN sem semente 1234 |
+| 1.32.49 | Idle 15 min derruba sessão elevada |
+| 1.32.50 | Modal de PIN sempre vazio; idle 15 min em produção |
+| 1.32.51 | Diário operacional no cofre (hospedagem + equipe + caixa; sem tela) |
 
 Fases A (preço), B (mapa e casa) e C (site e recepção) do cronograma estão fechadas.

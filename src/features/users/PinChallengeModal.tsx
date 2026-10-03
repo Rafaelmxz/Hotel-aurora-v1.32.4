@@ -1,4 +1,10 @@
-import { useState, type FormEvent } from "react";
+/**
+ * Modal de PIN para elevação de cargo.
+ * Pode: campo sempre vazio ao abrir; exige 4 dígitos digitados.
+ * Proibido: reaproveitar PIN no estado ou no autofill do browser.
+ * Store: confirmação via onConfirm → setSessionUser no userStore.
+ */
+import { useEffect, useState, type FormEvent } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,6 +29,12 @@ export function PinChallengeModal({
   onConfirm: (pin: string) => void;
 }) {
   const [pin, setPin] = useState("");
+  const [fieldKey, setFieldKey] = useState(0);
+
+  useEffect(() => {
+    setPin("");
+    if (open) setFieldKey((n) => n + 1);
+  }, [open, user?.id]);
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -51,13 +63,18 @@ export function PinChallengeModal({
             <X className="size-4" />
             <span className="sr-only">Fechar</span>
           </DialogPrimitive.Close>
-          <form onSubmit={submit} className="mt-4 grid gap-3">
+          <form onSubmit={submit} autoComplete="off" className="mt-4 grid gap-3">
             <div className="grid gap-2">
-              <Label htmlFor="staff-pin">Senha master / PIN</Label>
+              <Label htmlFor="staff-elevation-pin">PIN</Label>
               <Input
-                id="staff-pin"
+                key={fieldKey}
+                id="staff-elevation-pin"
+                name="staff-elevation-pin"
+                type="text"
                 inputMode="numeric"
-                autoComplete="off"
+                autoComplete="one-time-code"
+                autoCorrect="off"
+                spellCheck={false}
                 maxLength={4}
                 pattern="\d{4}"
                 placeholder="••••"

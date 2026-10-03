@@ -8,6 +8,8 @@ import {
   totalsForDate,
 } from "./cashStore";
 import { persistVault } from "@/lib/hotel/hydrate";
+import { actorFromStaff, appendAudit } from "@/features/audit/auditStore";
+import { getSessionUser } from "@/features/users/userStore";
 
 export function useDailyCash(date: string = TODAY_ISO) {
   const payments = useQuery({
@@ -35,6 +37,12 @@ export function useCloseCash(date: string = TODAY_ISO) {
   return useMutation({
     mutationFn: async (input: { countedCash: number; notes?: string }) => {
       const report = closeCash({ ...input, date });
+      appendAudit({
+        ...actorFromStaff(getSessionUser()),
+        action: "caixa.fechar",
+        target: report.date,
+        detail: report.id,
+      });
       await persistVault();
       return report;
     },

@@ -20,6 +20,13 @@ import {
 import { replaceOffers, listOffers } from "@/features/rates/offerStore";
 import { replaceCashCloses, listCashCloses } from "@/features/finance/cashStore";
 import { dumpStaff, replaceStaff } from "@/features/users/userStore";
+import {
+  dumpAudit,
+  mergeAudit,
+  replaceAudit,
+  SITE_AUDIT_ACTOR,
+  siteCreateEvents,
+} from "@/features/audit/auditStore";
 import { listGuests } from "@/features/guests/guestStore";
 import { listBlocks, replaceBlocks } from "@/features/reservations/blockStore";
 import { listSaleCloses, replaceSaleCloses } from "@/features/reservations/saleCloseStore";
@@ -32,7 +39,7 @@ import {
   type OccupancyStay,
   type PublicStayPayload,
 } from "./types";
-import { absorbSiteBookings, parseVault, unionVaultReservations } from "./parse";
+import { absorbSiteBookings, isSiteBooking, parseVault, unionVaultReservations } from "./parse";
 import { readLocalVault, writeLocalVault } from "./local";
 
 export function snapshotVault(): HotelVault {
@@ -58,6 +65,7 @@ export function snapshotVault(): HotelVault {
     },
     offers: listOffers(),
     staff: dumpStaff(),
+    audit: dumpAudit(),
   };
 }
 
@@ -83,6 +91,7 @@ export function applyVault(vault: HotelVault) {
   if (vault.roomTypes) replaceRoomTypes(vault.roomTypes);
   if (vault.cashCloses) replaceCashCloses(vault.cashCloses);
   if (vault.staff?.length) replaceStaff(vault.staff);
+  replaceAudit(mergeAudit(vault.audit, dumpAudit()));
 }
 
 function occupancyToReservation(row: OccupancyStay): Reservation {
@@ -145,9 +154,22 @@ export function bootVaultFromLocal() {
   if (local) applyVault(local);
 }
 
-let persistChain: Promise<void> = Promise.resolve();
+let vaultIo: Promise<unknown> = Promise.resolve();
 let vaultMode: "staff" | "public" = "staff";
 let lastMembershipRole: HotelMembershipRole = "recepcionista";
+
+function withVaultIo<T>(fn: () => Promise<T>): Promise<T> {
+  const run = vaultIo.catch(() => undefined).then(fn);
+  vaultIo = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+function vaultWithRamAudit(vault: HotelVault): HotelVault {
+  return { ...vault, audit: dumpAudit() };
+}
 
 export function getLastMembershipRole() {
   return lastMembershipRole;
@@ -175,35 +197,40 @@ async function ingestSiteBookings(base: HotelVault): Promise<HotelVault> {
     const { pullPublicBookingsFn } = await import("./api");
     const slice = await pullPublicBookingsFn();
     const next = absorbSiteBookings(base, slice);
-    if (next === base) return base;
-    return { ...next, savedAt: Date.now() };
+    const vault = next === base ? base : { ...next, savedAt: Date.now() };
+    const stamped = new Set(
+      (vault.audit ?? [])
+        .filter((row) => row.action === "reserva.criar" && row.staffId === SITE_AUDIT_ACTOR.staffId)
+        .map((row) => row.target),
+    );
+    const unstamped = vault.reservations.filter((row) => isSiteBooking(row) && !stamped.has(row.id));
+    if (unstamped.length === 0 && next === base) return base;
+    return {
+      ...vault,
+      savedAt: Date.now(),
+      audit: mergeAudit(vault.audit, siteCreateEvents(unstamped)),
+    };
   } catch {
     return base;
   }
 }
 
-function schedulePush(vault: HotelVault) {
-  persistChain = persistChain
-    .catch(() => undefined)
-    .then(() => pushVault(vault))
-    .catch(() => undefined);
-  return persistChain;
+async function persistVaultNow() {
+  if (detectVaultMode() === "public" || vaultMode === "public") return;
+  let vault = snapshotVault();
+  writeLocalVault(vault);
+  const ingested = await ingestSiteBookings(vault);
+  if (ingested !== vault) {
+    applyVault(ingested);
+    vault = vaultWithRamAudit(ingested);
+    writeLocalVault(vault);
+  }
+  await pushVault(vault).catch(() => undefined);
 }
 
 export async function persistVault() {
   if (detectVaultMode() === "public" || vaultMode === "public") return;
-  let vault = snapshotVault();
-  const ingested = await ingestSiteBookings(vault);
-  if (ingested !== vault) {
-    applyVault(ingested);
-    vault = ingested;
-  }
-  writeLocalVault(vault);
-  persistChain = persistChain
-    .catch(() => undefined)
-    .then(() => pushVault(vault))
-    .catch(() => undefined);
-  await persistChain;
+  return withVaultIo(persistVaultNow);
 }
 
 export async function restorePublicStay() {
@@ -218,8 +245,7 @@ export async function restorePublicStay() {
   }
 }
 
-export async function restoreVault() {
-  vaultMode = "staff";
+async function restoreVaultNow() {
   const local = readLocalVault();
   try {
     const { pullHotelVaultFn } = await import("./api");
@@ -235,14 +261,15 @@ export async function restoreVault() {
     const other = preferred && local && remote ? (preferred === local ? remote : local) : null;
     let vault = preferred ? unionVaultReservations(preferred, other) : null;
     if (!vault) {
-      await persistVault();
+      await persistVaultNow();
       return snapshotVault();
     }
     vault = await ingestSiteBookings(vault);
     applyVault(vault);
+    vault = vaultWithRamAudit(vault);
     writeLocalVault(vault);
     if (!remote || vault.reservations.length !== remote.reservations.length) {
-      await schedulePush(vault);
+      await pushVault(vault).catch(() => undefined);
     }
     return vault;
   } catch {
@@ -251,12 +278,18 @@ export async function restoreVault() {
     const before = vault.reservations.length;
     vault = await ingestSiteBookings(vault);
     applyVault(vault);
+    vault = vaultWithRamAudit(vault);
     writeLocalVault(vault);
     if (vault.reservations.length !== before) {
-      await schedulePush(vault);
+      await pushVault(vault).catch(() => undefined);
     }
     return vault;
   }
+}
+
+export async function restoreVault() {
+  vaultMode = "staff";
+  return withVaultIo(restoreVaultNow);
 }
 
 let restored: Promise<HotelVault> | null = null;

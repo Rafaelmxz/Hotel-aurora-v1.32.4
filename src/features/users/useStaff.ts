@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { can, canAccessPath, type Permission } from "./roles";
+import { can, canAccessPath, isPrivilegeElevation, ROLE_LABEL, type Permission } from "./roles";
 import {
   getSessionUser,
   inviteStaff,
@@ -11,6 +11,7 @@ import {
   type StaffUser,
 } from "./userStore";
 import { persistVault } from "@/lib/hotel/hydrate";
+import { actorFromStaff, appendAudit } from "@/features/audit/auditStore";
 
 export function useStaff() {
   return useQuery({
@@ -41,8 +42,14 @@ export function useCanPath(pathname: string) {
 export function useSwitchStaff() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { id: string; pin?: string }) =>
-      setSessionUser(input.id, input.pin),
+    mutationFn: async (input: { id: string; pin?: string }) => {
+      const before = getSessionUser();
+      const next = setSessionUser(input.id, input.pin);
+      if (before.id !== next.id && isPrivilegeElevation(before.role, next.role)) {
+        await persistVault();
+      }
+      return next;
+    },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: staffKeys.session });
     },
@@ -70,7 +77,24 @@ export function usePatchStaff() {
       id,
       ...patch
     }: Partial<Pick<StaffUser, "name" | "email" | "role" | "status" | "pin">> & { id: string }) => {
+      const actor = actorFromStaff(getSessionUser());
       const user = patchStaff(id, patch);
+      if (patch.role) {
+        appendAudit({
+          ...actor,
+          action: "equipe.cargo",
+          target: id,
+          detail: `${user.name} · ${ROLE_LABEL[user.role]}`,
+        });
+      }
+      if (patch.pin !== undefined) {
+        appendAudit({
+          ...actor,
+          action: "equipe.pin",
+          target: id,
+          detail: patch.pin === "" ? `${user.name} · PIN removido` : `${user.name} · PIN definido`,
+        });
+      }
       await persistVault();
       return user;
     },

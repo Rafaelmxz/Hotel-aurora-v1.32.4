@@ -1,12 +1,13 @@
 /**
- * Equipe e PIN de elevação.
- * Pode: semente e login criam admin/gerente sem PIN; Equipe grava 4 dígitos.
- * Proibido: semear ou criar PIN 1234; hash (depois); MFA; timeout.
- * Elevação recusa alvo sem PIN — mensagem manda definir na Equipe.
- * Store: este arquivo. Sessão: setSessionUser. PIN: patchStaff na Equipe.
+ * Equipe, PIN de elevação e idle da sessão elevada.
+ * Pode: semente/login sem PIN 1234; Equipe grava PIN; idle 15 min derruba admin/gerente; elevação com PIN gera diário.
+ * Proibido: reelevar no F5 pelo e-mail; mexer no cookie auth; hash; MFA; gravar o PIN no diário.
+ * Fallback idle: recepcionista (ou governança/financeiro). Sem fallback, não derruba.
+ * Store: este arquivo. Idle UI: useIdleStaffTimeout. PIN: patchStaff na Equipe.
  */
 import { assertValidEmail, normalizeEmail } from "@/lib/email";
-import { isPrivilegeElevation, type StaffRole } from "./roles";
+import { actorFromStaff, appendAudit } from "@/features/audit/auditStore";
+import { isPrivilegeElevation, requiresPin, type StaffRole } from "./roles";
 
 export const staffKeys = {
   all: ["staff"] as const,
@@ -75,6 +76,63 @@ let sessionId = "usr-admin";
 let boundAuthUserId: string | null = null;
 
 const STORAGE_KEY = "pms-staff-session";
+const ACTIVITY_KEY = "pms-staff-activity";
+export const STAFF_IDLE_MS = 15 * 60 * 1000;
+
+const IDLE_FALLBACK_ROLES: StaffRole[] = ["recepcionista", "governanca", "financeiro"];
+
+function readLastActivity(): number {
+  if (typeof window === "undefined") return Date.now();
+  const raw = window.localStorage.getItem(ACTIVITY_KEY);
+  if (!raw) return Date.now();
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : Date.now();
+}
+
+export function touchStaffActivity() {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(ACTIVITY_KEY, String(Date.now()));
+}
+
+function persistSessionId() {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(STORAGE_KEY, sessionId);
+  touchStaffActivity();
+}
+
+function pickIdleFallback(exceptId: string): StaffUser | undefined {
+  const pool = users.filter(
+    (row) => row.status === "ativo" && row.id !== exceptId && !requiresPin(row.role),
+  );
+  for (const role of IDLE_FALLBACK_ROLES) {
+    const hit = pool.find((row) => row.role === role);
+    if (hit) return hit;
+  }
+  return pool[0];
+}
+
+export function demoteElevatedSession(): StaffUser | null {
+  const current = users.find((row) => row.id === sessionId);
+  if (!current || !requiresPin(current.role)) return null;
+  const fallback = pickIdleFallback(current.id);
+  if (!fallback) return null;
+  sessionId = fallback.id;
+  persistSessionId();
+  return publicUser(fallback);
+}
+
+export function maybeDemoteIdleSession(): StaffUser | null {
+  const current = users.find((row) => row.id === sessionId);
+  if (!current || !requiresPin(current.role)) return null;
+  if (Date.now() - readLastActivity() < STAFF_IDLE_MS) return null;
+  return demoteElevatedSession();
+}
+
+export function msUntilStaffIdle(): number {
+  const current = users.find((row) => row.id === sessionId);
+  if (!current || !requiresPin(current.role)) return Number.POSITIVE_INFINITY;
+  return STAFF_IDLE_MS - (Date.now() - readLastActivity());
+}
 
 function publicUser(user: StaffUser): StaffUser {
   const { pin: _pin, ...rest } = user;
@@ -91,6 +149,7 @@ export function hydrateStaffSession() {
   if (saved && users.some((row) => row.id === saved && row.status === "ativo")) {
     sessionId = saved;
   }
+  maybeDemoteIdleSession();
 }
 
 export function listStaff(): StaffUser[] {
@@ -136,11 +195,15 @@ export function setSessionUser(id: string, pin?: string): StaffUser {
     if (pin !== user.pin) {
       throw new PinError("Acesso negado: PIN incorreto");
     }
+    appendAudit({
+      ...actorFromStaff(current),
+      action: "equipe.elevar",
+      target: user.id,
+      detail: user.name,
+    });
   }
   sessionId = user.id;
-  if (typeof window !== "undefined") {
-    window.localStorage.setItem(STORAGE_KEY, sessionId);
-  }
+  persistSessionId();
   return publicUser(user);
 }
 
@@ -148,9 +211,7 @@ export function assumeStaffSession(id: string): StaffUser {
   const user = users.find((row) => row.id === id && row.status === "ativo");
   if (!user) throw new Error("Usuário inativo ou não encontrado");
   sessionId = user.id;
-  if (typeof window !== "undefined") {
-    window.localStorage.setItem(STORAGE_KEY, sessionId);
-  }
+  persistSessionId();
   return publicUser(user);
 }
 
@@ -170,6 +231,10 @@ export function bindAuthToStaff(input: {
       (row) => normalizeEmail(row.email) === email && row.status === "ativo",
     );
     if (match) {
+      const current = users.find((row) => row.id === sessionId);
+      if (current && current.id !== match.id && requiresPin(match.role)) {
+        return { user: getSessionUser(), created: false };
+      }
       return { user: assumeStaffSession(match.id), created: false };
     }
   }
@@ -188,7 +253,13 @@ export function bindAuthToStaff(input: {
     const match = users.find(
       (row) => normalizeEmail(row.email) === email && row.status === "ativo",
     );
-    if (match) return { user: assumeStaffSession(match.id), created: false };
+    if (match) {
+      const current = users.find((row) => row.id === sessionId);
+      if (current && current.id !== match.id && requiresPin(match.role)) {
+        return { user: getSessionUser(), created: false };
+      }
+      return { user: assumeStaffSession(match.id), created: false };
+    }
     throw new Error("Não foi possível vincular a conta à equipe.");
   }
 }

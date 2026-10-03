@@ -39,6 +39,7 @@ src/
     reports/                   KPIs e DRE
     settings/                  hotel
     users/                     equipe, RBAC, PIN
+    audit/                     diário operacional no cofre
   mocks/hotelData.ts
   lib/version.ts               v1.32.4
 ```
@@ -78,7 +79,9 @@ Noite ocupada: check-in inclusive, check-out exclusive.
 
 **RBAC.** Admin (tudo), Gerente (sem Equipe), Recepcionista (mapa, reservas, hóspedes, caixa, site), Governança (limpeza), Financeiro (início, caixa, DRE).
 
-**PIN.** Elevação para Gerente/Admin. PIN nasce vazio; a Equipe grava 4 dígitos. Conta real (Google, X ou e-mail) assume o cargo do mesmo e-mail, sem PIN.
+**PIN.** Elevação para Gerente/Admin. PIN nasce vazio; a Equipe grava 4 dígitos. O modal de elevação abre sempre vazio (sem autofill). Conta real (Google, X ou e-mail) assume o cargo do mesmo e-mail quando ele não exige PIN. 15 min sem clique/tecla/navegação derruba admin/gerente para recepção; F5 não reelevar sozinho. Cookie de login permanece.
+
+**Diário.** Array `audit` no cofre: quem da sessão criou/confirmou/fez check-in/checkout, mudou cargo ou PIN, elevou no seletor ou fechou o caixa. Pedido do site entra como Link público. Quem edita o DevTools edita o diário. Sem tela nesta versão.
 
 **Cofre.** A tela avisa; o documento do hotel recusa. Overbooking, check-in em quarto sujo/manutenção e check-out com saldo não entram no snapshot. Check-out grava o quarto sujo na mesma alteração. Pedido do site que invade uma reserva da recepção é descartado.
 

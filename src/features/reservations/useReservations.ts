@@ -13,8 +13,18 @@ import { guestKeys } from "@/features/guests/guestStore";
 import type { Reservation, ReservationStatus } from "@/mocks/hotelData";
 import { ensureVaultRestored, persistVault, restoreVault, detectVaultMode } from "@/lib/hotel/hydrate";
 import { assertStayTransition } from "@/lib/hotel/rules";
+import { actorFromStaff, appendAudit, type AuditAction } from "@/features/audit/auditStore";
+import { getSessionUser } from "@/features/users/userStore";
 import { listBlocks } from "./blockStore";
 import { listSaleCloses } from "./saleCloseStore";
+
+function auditStayStatus(from: ReservationStatus, to: ReservationStatus): AuditAction | null {
+  if (from === to) return null;
+  if (to === "confirmada") return "reserva.confirmar";
+  if (to === "check-in") return "reserva.check-in";
+  if (to === "check-out") return "reserva.check-out";
+  return null;
+}
 
 export function useReservations() {
   return useQuery({
@@ -77,6 +87,15 @@ export function usePatchReservation() {
       if (current.status !== "check-out" && updated.status === "check-out") {
         markRoomDirty(updated.roomId);
       }
+      const action = auditStayStatus(current.status, updated.status);
+      if (action) {
+        appendAudit({
+          ...actorFromStaff(getSessionUser()),
+          action,
+          target: updated.id,
+          detail: updated.guestName,
+        });
+      }
       return updated;
     },
     onSuccess: async (updated) => {
@@ -103,7 +122,16 @@ export function useCreateReservation() {
       children?: number;
       guestPhone?: string;
       holdUntil?: string;
-    }) => createReservation(input),
+    }) => {
+      const created = createReservation(input);
+      appendAudit({
+        ...actorFromStaff(getSessionUser()),
+        action: "reserva.criar",
+        target: created.id,
+        detail: created.guestName,
+      });
+      return created;
+    },
     onSuccess: async (created) => {
       await queryClient.invalidateQueries({ queryKey: guestKeys.all });
       await syncReservationQueries(queryClient, created);
