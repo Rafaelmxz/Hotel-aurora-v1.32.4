@@ -228,18 +228,33 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {items.map((item) => {
                   const Icon = item.icon;
                   const active = isActivePath(pathname, item.to);
+                  const className = cn(
+                    "inline-flex h-10 items-center rounded-lg text-sm font-medium transition-colors duration-150",
+                    expanded ? "gap-2.5 px-2.5" : "justify-center",
+                    active
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                  );
+                  if (item.to === "/calendario") {
+                    return (
+                      <Link
+                        key={item.to}
+                        to="/calendario"
+                        search={{}}
+                        title={item.label}
+                        className={className}
+                      >
+                        <Icon className="size-4 shrink-0" />
+                        {expanded ? <span className="truncate">{item.label}</span> : null}
+                      </Link>
+                    );
+                  }
                   return (
                     <Link
                       key={item.to}
                       to={item.to}
                       title={item.label}
-                      className={cn(
-                        "inline-flex h-10 items-center rounded-lg text-sm font-medium transition-colors duration-150",
-                        expanded ? "gap-2.5 px-2.5" : "justify-center",
-                        active
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:bg-secondary hover:text-foreground",
-                      )}
+                      className={className}
                     >
                       <Icon className="size-4 shrink-0" />
                       {expanded ? <span className="truncate">{item.label}</span> : null}

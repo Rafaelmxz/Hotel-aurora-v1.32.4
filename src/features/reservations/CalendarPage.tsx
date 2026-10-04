@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+/**
+ * Mapa de reservas (timeline).
+ * Pode: focar uma estadia via `?reserva=` uma vez; fechar a ficha limpa a query.
+ * Proibido: pular a semana de novo a cada refetch; pintar cor na view.
+ * Cor da faixa: STATUS_BAR no Timeline, por status da reserva.
+ * Store: useReservations / usePatchReservation. A URL só seleciona.
+ */
+import { useEffect, useMemo, useRef, useState } from "react";
 import { addDays, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -49,6 +56,8 @@ const LEGEND_DOT: Record<ReservationStatus, string> = {
 
 export function CalendarPage() {
   const { reserva: reservaSearch } = calendarioRoute.useSearch();
+  const navigate = calendarioRoute.useNavigate();
+  const jumpedFor = useRef<string | null>(null);
   const [start, setStart] = useState(() => addDays(TODAY, -3));
   const [selectedId, setSelectedId] = useState<string | null>(reservaSearch ?? null);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
@@ -65,14 +74,26 @@ export function CalendarPage() {
   const patchStay = usePatchReservation();
 
   useEffect(() => {
-    if (!reservaSearch) return;
+    if (!reservaSearch) {
+      jumpedFor.current = null;
+      return;
+    }
     setSelectedId(reservaSearch);
     setSelectedBlockId(null);
+  }, [reservaSearch]);
+
+  useEffect(() => {
+    if (!reservaSearch || jumpedFor.current === reservaSearch) return;
     const reservation = reservations.find((row) => row.id === reservaSearch);
-    if (reservation) {
-      setStart(addDays(parseISODate(reservation.checkIn), -1));
-    }
+    if (!reservation) return;
+    jumpedFor.current = reservaSearch;
+    setStart(addDays(parseISODate(reservation.checkIn), -1));
   }, [reservaSearch, reservations]);
+
+  function clearStaySearch() {
+    setSelectedId(null);
+    void navigate({ search: {}, replace: true });
+  }
 
   const selected = useMemo(
     () => reservations.find((row) => row.id === selectedId) ?? null,
@@ -269,7 +290,7 @@ export function CalendarPage() {
       <CheckInModal
         reservation={selected}
         onOpenChange={(open) => {
-          if (!open) setSelectedId(null);
+          if (!open) clearStaySearch();
         }}
       />
     </div>

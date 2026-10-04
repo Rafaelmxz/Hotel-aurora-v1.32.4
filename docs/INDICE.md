@@ -1,4 +1,4 @@
-# Índice — Hotel Aurora PMS v1.32.53
+# Índice — Hotel Aurora PMS v1.32.55
 
 Use **antes** de abrir código. `[x]` = no produto. Não misture um `[ ]` com outro no mesmo recorte.
 
