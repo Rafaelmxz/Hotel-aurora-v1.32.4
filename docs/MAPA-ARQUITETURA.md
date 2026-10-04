@@ -89,7 +89,7 @@ Preço, conflito e status **não** nascem na view. Nascem no store ou em `src/li
 | Propriedade / horários / cancelamento | `src/features/settings/propertyStore.ts` + `HotelSettingsView.tsx` |
 | Bloqueio e fechar venda (cadastro Hotel) | `src/features/settings/InventoryHoldsPanel.tsx` |
 | Equipe / PIN / cargos | `src/features/users/` (`roles.ts`, `userStore.ts`, `LoginView.tsx`, `PinChallengeModal.tsx`, `useIdleStaffTimeout.ts`) |
-| Diário operacional (audit) | `src/features/audit/auditStore.ts` (array `audit` no cofre; sem tela) |
+| Diário operacional (audit) | `src/features/audit/` (`auditStore.ts`, `useAudit.ts`, `AuditLogPanel.tsx` no final de Equipe) |
 | Caixa | `src/features/finance/cashStore.ts` + `DailyCashRegister.tsx` |
 | Início | `src/features/dashboard/DashboardView.tsx` + `useDashboardData.ts` |
 | Menu da equipe | `src/features/layout/AppShell.tsx` |

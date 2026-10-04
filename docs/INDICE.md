@@ -1,4 +1,4 @@
-# Índice — Hotel Aurora PMS v1.32.51
+# Índice — Hotel Aurora PMS v1.32.53
 
 Use **antes** de abrir código. `[x]` = no produto. Não misture um `[ ]` com outro no mesmo recorte.
 
@@ -100,10 +100,10 @@ Use **antes** de abrir código. `[x]` = no produto. Não misture um `[ ]` com ou
 - [ ] Analytics (GA4) — só se o hotel pedir
 
 ### Segurança
-- [x] PIN sem semente 1234 (admin/gerente nascem sem PIN; elevação manda definir na Equipe)
+- [x] PIN de elevação: Ana (admin) nasce com 1234; Equipe grava PIN novo; idle sem PIN da Ana não trava
 - [ ] MFA
 - [x] Política de sessão / timeout (idle 15 min derruba admin/gerente para recepção; modal de PIN sempre vazio)
-- [ ] Auditoria (“quem mudou o quê”) — diário no cofre (v1.32.51, sem tela); tela de leitura no recorte seguinte
+- [x] Auditoria (“quem mudou o quê”) — diário no cofre + lista só leitura no final de Equipe (admin)
 
 ### Fora desta linha (não puxar no mesmo recorte)
 - [ ] Channel Manager / OTAs

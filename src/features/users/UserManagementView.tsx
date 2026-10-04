@@ -12,6 +12,7 @@ import {
   useStaffSession,
 } from "./useStaff";
 import type { StaffStatus } from "./userStore";
+import { AuditLogPanel } from "@/features/audit/AuditLogPanel";
 
 const ROLES: StaffRole[] = ["admin", "gerente", "recepcionista", "governanca", "financeiro"];
 
@@ -173,6 +174,8 @@ export function UserManagementView() {
           </li>
         ))}
       </ul>
+
+      <AuditLogPanel />
     </div>
   );
 }

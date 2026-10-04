@@ -12,6 +12,7 @@ import {
 } from "./userStore";
 import { persistVault } from "@/lib/hotel/hydrate";
 import { actorFromStaff, appendAudit } from "@/features/audit/auditStore";
+import { auditKeys } from "@/features/audit/useAudit";
 
 export function useStaff() {
   return useQuery({
@@ -101,6 +102,7 @@ export function usePatchStaff() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: staffKeys.all });
       await queryClient.invalidateQueries({ queryKey: staffKeys.session });
+      await queryClient.invalidateQueries({ queryKey: auditKeys.all });
     },
   });
 }
