@@ -1,4 +1,4 @@
-import { genericOAuthClient } from "better-auth/client/plugins";
+import { genericOAuthClient, twoFactorClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import { runPreSignInSignOut, runSignOut } from "../../../scripts/sign-out-plan.mjs";
 import { GROK_PROVIDERS } from "./providers";
@@ -18,7 +18,14 @@ import { GROK_PROVIDERS } from "./providers";
  * the visitor stays signed in.
  */
 export const authClient = createAuthClient({
-  plugins: [genericOAuthClient()],
+  plugins: [
+    genericOAuthClient(),
+    twoFactorClient({
+      onTwoFactorRedirect: () => {
+        window.location.href = "/login/2fa";
+      },
+    }),
+  ],
   fetchOptions: {
     onRequest(ctx) {
       const token = getBearerToken();
@@ -65,6 +72,11 @@ function setBearerToken(token: string | null): void {
   } catch {
     /* storage unavailable — ignore */
   }
+}
+
+/** Live-preview iframe: keep the session token when Set-Cookie is partitioned. */
+export function rememberPreviewBearer(token: string | null | undefined): void {
+  if (token) setBearerToken(token);
 }
 
 /**

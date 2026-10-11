@@ -30,7 +30,7 @@
  * a verified id via `@/lib/auth/middleware`.
  */
 import { betterAuth } from "better-auth";
-import { bearer, genericOAuth } from "better-auth/plugins";
+import { bearer, genericOAuth, twoFactor } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { getCookie } from "@tanstack/react-start/server";
 import { randomBytes } from "node:crypto";
@@ -228,11 +228,17 @@ export const auth = betterAuth({
       session_data: { name: "__Host-grok-auth.session_data" },
       account_data: { name: "__Host-grok-auth.account_data" },
       dont_remember: { name: "__Host-grok-auth.dont_remember" },
+      two_factor: { name: "__Host-grok-auth.two_factor" },
+      trust_device: { name: "__Host-grok-auth.trust_device" },
     },
   },
 
   plugins: [
     gateIdentitySessions(),
+
+    // TOTP + backup codes. No otpOptions.sendOTP (no email/SMS). MFA stays off
+    // until the first authenticator code. OAuth (Google/X) is not gated.
+    twoFactor({ issuer: "Hotel Aurora" }),
 
     // One genericOAuth provider per upstream (when auth is on), all federating
     // to the broker with the SAME client and differing only by the `idp` hint.

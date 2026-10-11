@@ -104,7 +104,7 @@ function isActivePath(pathname: string, to: string) {
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const todayLabel = formatToday(TODAY);
-  const isLogin = pathname === "/login";
+  const isLogin = pathname === "/login" || pathname.startsWith("/login/");
   const isPublic =
     isLogin || pathname === "/reservar" || pathname.startsWith("/reservar/");
   const { data: property } = useProperty();

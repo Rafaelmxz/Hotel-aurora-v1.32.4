@@ -1,4 +1,4 @@
-# Índice — Hotel Aurora PMS v1.32.55
+# Índice — Hotel Aurora PMS v1.32.56
 
 Use **antes** de abrir código. `[x]` = no produto. Não misture um `[ ]` com outro no mesmo recorte.
 
@@ -101,7 +101,7 @@ Use **antes** de abrir código. `[x]` = no produto. Não misture um `[ ]` com ou
 
 ### Segurança
 - [x] PIN de elevação: Ana (admin) nasce com 1234; Equipe grava PIN novo; idle sem PIN da Ana não trava
-- [ ] MFA
+- [x] MFA (TOTP opcional em `/conta`; desafio `/login/2fa` no e-mail/senha; Google/X sem 2FA)
 - [x] Política de sessão / timeout (idle 15 min derruba admin/gerente para recepção; modal de PIN sempre vazio)
 - [x] Auditoria (“quem mudou o quê”) — diário no cofre + lista só leitura no final de Equipe (admin)
 

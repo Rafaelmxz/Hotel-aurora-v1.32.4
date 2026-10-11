@@ -52,6 +52,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, Permission[]> = {
 const PATH_PERMISSION: Array<{ prefix: string; permission: Permission | null }> = [
   { prefix: "/reservar", permission: null },
   { prefix: "/login", permission: null },
+  { prefix: "/conta", permission: null },
   { prefix: "/calendario", permission: "calendar" },
   { prefix: "/ocupacao", permission: "calendar" },
   { prefix: "/reservas", permission: "calendar" },

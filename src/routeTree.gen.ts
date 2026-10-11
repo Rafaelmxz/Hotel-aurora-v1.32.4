@@ -14,6 +14,7 @@ import { Route as CaixaRouteImport } from './routes/caixa'
 import { Route as CalendarioRouteImport } from './routes/calendario'
 import { Route as CasaRouteImport } from './routes/casa'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
+import { Route as ContaRouteImport } from './routes/conta'
 import { Route as EquipeRouteImport } from './routes/equipe'
 import { Route as GovernancaRouteImport } from './routes/governanca'
 import { Route as HospedesRouteImport } from './routes/hospedes'
@@ -26,6 +27,7 @@ import { Route as ReservasRouteImport } from './routes/reservas'
 import { Route as ReservasDiretasRouteImport } from './routes/reservas-diretas'
 import { Route as TarifasRouteImport } from './routes/tarifas'
 import { Route as HospedesGuestIdRouteImport } from './routes/hospedes.$guestId'
+import { Route as Login2faRouteImport } from './routes/login.2fa'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -51,6 +53,11 @@ const CasaRoute = CasaRouteImport.update({
 const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
   id: '/configuracoes',
   path: '/configuracoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContaRoute = ContaRouteImport.update({
+  id: '/conta',
+  path: '/conta',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EquipeRoute = EquipeRouteImport.update({
@@ -113,6 +120,11 @@ const HospedesGuestIdRoute = HospedesGuestIdRouteImport.update({
   path: '/$guestId',
   getParentRoute: () => HospedesRoute,
 } as any)
+const Login2faRoute = Login2faRouteImport.update({
+  id: '/2fa',
+  path: '/2fa',
+  getParentRoute: () => LoginRoute,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -125,10 +137,11 @@ export interface FileRoutesByFullPath {
   '/calendario': typeof CalendarioRoute
   '/casa': typeof CasaRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/conta': typeof ContaRoute
   '/equipe': typeof EquipeRoute
   '/governanca': typeof GovernancaRoute
   '/hospedes': typeof HospedesRouteWithChildren
-  '/login': typeof LoginRoute
+  '/login': typeof LoginRouteWithChildren
   '/ocupacao': typeof OcupacaoRoute
   '/ofertas': typeof OfertasRoute
   '/relatorios': typeof RelatoriosRoute
@@ -137,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/reservas-diretas': typeof ReservasDiretasRoute
   '/tarifas': typeof TarifasRoute
   '/hospedes/$guestId': typeof HospedesGuestIdRoute
+  '/login/2fa': typeof Login2faRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
@@ -145,10 +159,11 @@ export interface FileRoutesByTo {
   '/calendario': typeof CalendarioRoute
   '/casa': typeof CasaRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/conta': typeof ContaRoute
   '/equipe': typeof EquipeRoute
   '/governanca': typeof GovernancaRoute
   '/hospedes': typeof HospedesRouteWithChildren
-  '/login': typeof LoginRoute
+  '/login': typeof LoginRouteWithChildren
   '/ocupacao': typeof OcupacaoRoute
   '/ofertas': typeof OfertasRoute
   '/relatorios': typeof RelatoriosRoute
@@ -157,6 +172,7 @@ export interface FileRoutesByTo {
   '/reservas-diretas': typeof ReservasDiretasRoute
   '/tarifas': typeof TarifasRoute
   '/hospedes/$guestId': typeof HospedesGuestIdRoute
+  '/login/2fa': typeof Login2faRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
@@ -166,10 +182,11 @@ export interface FileRoutesById {
   '/calendario': typeof CalendarioRoute
   '/casa': typeof CasaRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/conta': typeof ContaRoute
   '/equipe': typeof EquipeRoute
   '/governanca': typeof GovernancaRoute
   '/hospedes': typeof HospedesRouteWithChildren
-  '/login': typeof LoginRoute
+  '/login': typeof LoginRouteWithChildren
   '/ocupacao': typeof OcupacaoRoute
   '/ofertas': typeof OfertasRoute
   '/relatorios': typeof RelatoriosRoute
@@ -178,6 +195,7 @@ export interface FileRoutesById {
   '/reservas-diretas': typeof ReservasDiretasRoute
   '/tarifas': typeof TarifasRoute
   '/hospedes/$guestId': typeof HospedesGuestIdRoute
+  '/login/2fa': typeof Login2faRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
@@ -188,6 +206,7 @@ export interface FileRouteTypes {
     | '/calendario'
     | '/casa'
     | '/configuracoes'
+    | '/conta'
     | '/equipe'
     | '/governanca'
     | '/hospedes'
@@ -200,6 +219,7 @@ export interface FileRouteTypes {
     | '/reservas-diretas'
     | '/tarifas'
     | '/hospedes/$guestId'
+    | '/login/2fa'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -208,6 +228,7 @@ export interface FileRouteTypes {
     | '/calendario'
     | '/casa'
     | '/configuracoes'
+    | '/conta'
     | '/equipe'
     | '/governanca'
     | '/hospedes'
@@ -220,6 +241,7 @@ export interface FileRouteTypes {
     | '/reservas-diretas'
     | '/tarifas'
     | '/hospedes/$guestId'
+    | '/login/2fa'
     | '/api/auth/$'
   id:
     | '__root__'
@@ -228,6 +250,7 @@ export interface FileRouteTypes {
     | '/calendario'
     | '/casa'
     | '/configuracoes'
+    | '/conta'
     | '/equipe'
     | '/governanca'
     | '/hospedes'
@@ -240,6 +263,7 @@ export interface FileRouteTypes {
     | '/reservas-diretas'
     | '/tarifas'
     | '/hospedes/$guestId'
+    | '/login/2fa'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
@@ -249,10 +273,11 @@ export interface RootRouteChildren {
   CalendarioRoute: typeof CalendarioRoute
   CasaRoute: typeof CasaRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
+  ContaRoute: typeof ContaRoute
   EquipeRoute: typeof EquipeRoute
   GovernancaRoute: typeof GovernancaRoute
   HospedesRoute: typeof HospedesRouteWithChildren
-  LoginRoute: typeof LoginRoute
+  LoginRoute: typeof LoginRouteWithChildren
   OcupacaoRoute: typeof OcupacaoRoute
   OfertasRoute: typeof OfertasRoute
   RelatoriosRoute: typeof RelatoriosRoute
@@ -298,6 +323,13 @@ declare module '@tanstack/react-router' {
       path: '/configuracoes'
       fullPath: '/configuracoes'
       preLoaderRoute: typeof ConfiguracoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/conta': {
+      id: '/conta'
+      path: '/conta'
+      fullPath: '/conta'
+      preLoaderRoute: typeof ContaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/equipe': {
@@ -384,6 +416,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HospedesGuestIdRouteImport
       parentRoute: typeof HospedesRoute
     }
+    '/login/2fa': {
+      id: '/login/2fa'
+      path: '/2fa'
+      fullPath: '/login/2fa'
+      preLoaderRoute: typeof Login2faRouteImport
+      parentRoute: typeof LoginRoute
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -406,16 +445,27 @@ const HospedesRouteWithChildren = HospedesRoute._addFileChildren(
   HospedesRouteChildren,
 )
 
+interface LoginRouteChildren {
+  Login2faRoute: typeof Login2faRoute
+}
+
+const LoginRouteChildren: LoginRouteChildren = {
+  Login2faRoute: Login2faRoute,
+}
+
+const LoginRouteWithChildren = LoginRoute._addFileChildren(LoginRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CaixaRoute: CaixaRoute,
   CalendarioRoute: CalendarioRoute,
   CasaRoute: CasaRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
+  ContaRoute: ContaRoute,
   EquipeRoute: EquipeRoute,
   GovernancaRoute: GovernancaRoute,
   HospedesRoute: HospedesRouteWithChildren,
-  LoginRoute: LoginRoute,
+  LoginRoute: LoginRouteWithChildren,
   OcupacaoRoute: OcupacaoRoute,
   OfertasRoute: OfertasRoute,
   RelatoriosRoute: RelatoriosRoute,

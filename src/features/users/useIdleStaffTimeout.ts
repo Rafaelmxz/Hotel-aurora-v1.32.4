@@ -25,7 +25,10 @@ export function useIdleStaffTimeout() {
 
   useEffect(() => {
     const isPublic =
-      pathname === "/login" || pathname === "/reservar" || pathname.startsWith("/reservar/");
+      pathname === "/login" ||
+      pathname.startsWith("/login/") ||
+      pathname === "/reservar" ||
+      pathname.startsWith("/reservar/");
     if (isPublic) return;
 
     let timer: number | undefined;

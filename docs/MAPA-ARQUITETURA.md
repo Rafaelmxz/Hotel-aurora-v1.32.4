@@ -2,7 +2,7 @@
 
 Objetivo: **não reler o repositório**. Abra 1–3 arquivos da tabela. Se o tema não estiver aqui, ele ainda não existe.
 
-Produto: Hotel Aurora PMS v1.32.25  
+Produto: Hotel Aurora PMS v1.32.56  
 Repo: https://github.com/Rafaelmxz/Hotel-aurora-v1.32.4
 
 ---
@@ -89,6 +89,7 @@ Preço, conflito e status **não** nascem na view. Nascem no store ou em `src/li
 | Propriedade / horários / cancelamento | `src/features/settings/propertyStore.ts` + `HotelSettingsView.tsx` |
 | Bloqueio e fechar venda (cadastro Hotel) | `src/features/settings/InventoryHoldsPanel.tsx` |
 | Equipe / PIN / cargos | `src/features/users/` (`roles.ts`, `userStore.ts`, `LoginView.tsx`, `PinChallengeModal.tsx`, `useIdleStaffTimeout.ts`) |
+| MFA TOTP (conta + desafio) | `src/features/users/AccountMfaView.tsx` + `TwoFactorChallengeView.tsx`; plugin `twoFactor` em `src/lib/auth/server.ts` / `client.ts`; schema `migrations/0005_two_factor.sql` |
 | Diário operacional (audit) | `src/features/audit/` (`auditStore.ts`, `useAudit.ts`, `AuditLogPanel.tsx` no final de Equipe) |
 | Caixa | `src/features/finance/cashStore.ts` + `DailyCashRegister.tsx` |
 | Início | `src/features/dashboard/DashboardView.tsx` + `useDashboardData.ts` |
@@ -105,7 +106,7 @@ Preço, conflito e status **não** nascem na view. Nascem no store ou em `src/li
 | Versão | `src/lib/version.ts` |
 
 ### Rotas
-`/`, `/calendario`, `/casa`, `/reservas`, `/ocupacao`, `/governanca`, `/caixa`, `/tarifas`, `/hospedes`, `/relatorios`, `/reservas-diretas`, `/reservar`, `/configuracoes`, `/equipe`, `/login`
+`/`, `/calendario`, `/casa`, `/reservas`, `/ocupacao`, `/governanca`, `/caixa`, `/tarifas`, `/hospedes`, `/relatorios`, `/reservas-diretas`, `/reservar`, `/configuracoes`, `/equipe`, `/login`, `/login/2fa`, `/conta`
 
 ---
 
@@ -115,7 +116,6 @@ Preço, conflito e status **não** nascem na view. Nascem no store ou em `src/li
 - Inventário dividido / quarto virtual
 - Spaces
 - Matriz MinLOS/MaxLOS por data
-- MFA
 - GA4 / widget embed
 - Segmentos de mercado
 - Catálogo livre de add-ons (só os 3 de `catalog.ts`)

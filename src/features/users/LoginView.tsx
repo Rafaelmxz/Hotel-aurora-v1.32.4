@@ -8,6 +8,12 @@ import { Separator } from "@/components/ui/separator";
 import { GROK_PROVIDERS, authClient, authEnabled, signIn } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 
+/**
+ * Tela /login — e-mail/senha e Google/X.
+ * Pode: criar conta, entrar, mandar para /login/2fa se o plugin devolver twoFactorRedirect.
+ * Proibido: pedir TOTP em Google/X; forçar MFA; mexer no PIN da Equipe.
+ * Sessão: cookie Better Auth depois do login (ou depois de /login/2fa).
+ */
 type Mode = "entrar" | "criar";
 
 function authErrorMessage(message: string | undefined) {
@@ -21,7 +27,7 @@ function authErrorMessage(message: string | undefined) {
   return "Não foi possível entrar. Tente de novo.";
 }
 
-function LoginShell({ children }: { children: ReactNode }) {
+export function LoginShell({ children }: { children: ReactNode }) {
   return (
     <div className="grid min-h-dvh bg-background lg:grid-cols-[minmax(0,1fr)_28rem]" suppressHydrationWarning>
       <section className="relative hidden flex-col justify-between bg-primary px-10 py-12 text-primary-foreground lg:flex">
@@ -74,11 +80,15 @@ export function LoginView() {
         });
         if (signUpError) throw new Error(signUpError.message);
       } else {
-        const { error: signInError } = await authClient.signIn.email({
+        const { data, error: signInError } = await authClient.signIn.email({
           email,
           password,
         });
         if (signInError) throw new Error(signInError.message);
+        if (data && "twoFactorRedirect" in data && data.twoFactorRedirect) {
+          window.location.href = "/login/2fa";
+          return;
+        }
       }
       await authClient.getSession();
       window.location.href = "/";

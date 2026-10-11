@@ -178,7 +178,12 @@ export function getLastMembershipRole() {
 export function detectVaultMode(): "staff" | "public" {
   if (typeof window === "undefined") return vaultMode;
   const path = window.location.pathname;
-  if (path === "/reservar" || path.startsWith("/reservar/") || path === "/login") {
+  if (
+    path === "/reservar" ||
+    path.startsWith("/reservar/") ||
+    path === "/login" ||
+    path.startsWith("/login/")
+  ) {
     return "public";
   }
   return "staff";

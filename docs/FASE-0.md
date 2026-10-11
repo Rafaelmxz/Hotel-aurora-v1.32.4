@@ -1,4 +1,4 @@
-# Fase 0 — Combinado e recorte (Hotel Aurora v1.32.8)
+# Fase 0 — Combinado e recorte (Hotel Aurora v1.32.56)
 
 Chão desta conversa: o produto **v1.32.8**. Nada da conversa antiga conta. Não misturar visual, banco e pastas no mesmo recorte.
 
@@ -25,15 +25,15 @@ Regras:
 - Uma fonte só de preço, vaga e reserva
 - PIN de elevação para Admin/Gerente: Ana (admin) nasce com 1234; Equipe pode gravar outro; login não cria PIN
 
-Telas e caminhos atuais (`/`, `/calendario`, `/ocupacao`, `/reservas`, `/governanca`, `/caixa`, `/tarifas`, `/hospedes`, `/relatorios`, `/reservas-diretas`, `/reservar`, `/configuracoes`, `/equipe`). Menu: Início, Mapa, Reservas, Ocupação, Hóspedes, Limpeza, Caixa, Relatórios, Tarifas, Site, Hotel, Equipe. `/ofertas` redireciona para Tarifas → Ofertas.
+Telas e caminhos atuais (`/`, `/calendario`, `/ocupacao`, `/reservas`, `/governanca`, `/caixa`, `/tarifas`, `/hospedes`, `/relatorios`, `/reservas-diretas`, `/reservar`, `/configuracoes`, `/equipe`, `/login`, `/login/2fa`, `/conta`). Menu: Início, Mapa, Reservas, Ocupação, Hóspedes, Limpeza, Caixa, Relatórios, Tarifas, Site, Hotel, Equipe. `/ofertas` redireciona para Tarifas → Ofertas. Conta (MFA) abre pelo nome no rodapé do menu.
 
 ## Recorte desta fase
 
-**Contraste check-out no mapa.**
+**MFA TOTP opcional (Better Auth `twoFactor`).**
 
-Tela: mapa (`/calendario`).
-Regra: `--color-status-checkout` = `#2f7a4e` (verde-floresta). Pendente / confirmada / check-in iguais. Semana de `?reserva=` continua pulando.
-Não muda: ouro, salto de semana, `selectedId`, idle, diário.
+Tela: `/conta` (ativar/desativar) e `/login/2fa` (código depois do e-mail/senha).
+Regra: plugin `twoFactor({ issuer: "Hotel Aurora" })`; liga só depois do 1º código do app; login e-mail com MFA pede TOTP ou backup.
+Não muda: ouro, PIN, idle, Google/X (não pedem 2FA), vitrine, cofre, Equipe. Sem OTP e-mail/SMS.
 
 ## Teste de ouro (repetir no fim de cada fase)
 

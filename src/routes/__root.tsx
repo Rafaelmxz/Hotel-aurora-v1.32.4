@@ -61,7 +61,7 @@ function VaultHydrator() {
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   useLayoutEffect(() => {
-    const isLogin = pathname === "/login";
+    const isLogin = pathname === "/login" || pathname.startsWith("/login/");
     const isPublic =
       isLogin || pathname === "/reservar" || pathname.startsWith("/reservar/");
     resetVaultRestore();
