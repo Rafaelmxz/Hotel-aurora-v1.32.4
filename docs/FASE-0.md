@@ -23,17 +23,17 @@ Regras:
 - Check-out bloqueado se tem saldo
 - PMS + vitrine, **sem** Booking/Airbnb nesta etapa
 - Uma fonte só de preço, vaga e reserva
-- PIN de elevação para Admin/Gerente: Ana (admin) nasce com 1234; Equipe pode gravar outro; login não cria PIN
+- PIN de elevação para Admin/Gerente: só o PIN gravado na Equipe; ninguém nasce com PIN; 1234 não é chave-mestra; idle 15 min só derruba quem tem PIN gravado; login não cria PIN
 
 Telas e caminhos atuais (`/`, `/calendario`, `/ocupacao`, `/reservas`, `/governanca`, `/caixa`, `/tarifas`, `/hospedes`, `/relatorios`, `/reservas-diretas`, `/reservar`, `/configuracoes`, `/equipe`, `/login`, `/login/2fa`, `/conta`). Menu: Início, Mapa, Reservas, Ocupação, Hóspedes, Limpeza, Caixa, Relatórios, Tarifas, Site, Hotel, Equipe. `/ofertas` redireciona para Tarifas → Ofertas. Conta (MFA) abre pelo nome no rodapé do menu.
 
 ## Recorte desta fase
 
-**MFA TOTP opcional (Better Auth `twoFactor`).**
+**Tirar o PIN 1234 como chave-mestra da Ana.**
 
-Tela: `/conta` (ativar/desativar) e `/login/2fa` (código depois do e-mail/senha).
-Regra: plugin `twoFactor({ issuer: "Hotel Aurora" })`; liga só depois do 1º código do app; login e-mail com MFA pede TOTP ou backup.
-Não muda: ouro, PIN, idle, Google/X (não pedem 2FA), vitrine, cofre, Equipe. Sem OTP e-mail/SMS.
+Tela: seletor de equipe / modal de PIN (mensagem do store).
+Regra: elevação só com `user.pin` gravado na Equipe; sem PIN, recusa e o idle não derruba admin/gerente.
+Não muda: ouro, MFA, Google/X, cofre, hash, modal (só o store).
 
 ## Teste de ouro (repetir no fim de cada fase)
 

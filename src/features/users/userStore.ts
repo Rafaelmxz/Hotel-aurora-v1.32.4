@@ -1,9 +1,9 @@
 /**
  * Equipe, PIN de elevação e idle da sessão elevada.
- * Pode: Ana (usr-admin) nasce com PIN 1234; cofre sem PIN da Ana recebe 1234; Equipe grava PIN novo.
- * Proibido: reelevar no F5 pelo e-mail; mexer no cookie auth; hash; MFA; gravar o PIN no diário.
+ * Pode: elevação só com PIN gravado na Equipe; idle 15 min derruba quem tem PIN; sem PIN não derruba.
+ * Proibido: chave-mestra; nascer com PIN; reelevar no F5 pelo e-mail; mexer no cookie auth; hash; MFA; gravar o PIN no diário.
  * Fallback idle: recepcionista (ou governança/financeiro). Sem fallback, não derruba.
- * Store: este arquivo. Idle UI: useIdleStaffTimeout. PIN: semente + patchStaff na Equipe.
+ * Store: este arquivo. Idle UI: useIdleStaffTimeout. PIN: patchStaff na Equipe.
  */
 import { assertValidEmail, normalizeEmail } from "@/lib/email";
 import { actorFromStaff, appendAudit } from "@/features/audit/auditStore";
@@ -32,8 +32,6 @@ export class PinError extends Error {
   }
 }
 
-export const SEED_ADMIN_PIN = "1234";
-
 const SEED: StaffUser[] = [
   {
     id: "usr-admin",
@@ -41,7 +39,6 @@ const SEED: StaffUser[] = [
     email: "ana.souza@hotelaurora.com",
     role: "admin",
     status: "ativo",
-    pin: SEED_ADMIN_PIN,
   },
   {
     id: "usr-gerente",
@@ -114,9 +111,13 @@ function pickIdleFallback(exceptId: string): StaffUser | undefined {
   return pool[0];
 }
 
+function hasStoredPin(user: StaffUser) {
+  return Boolean(user.pin);
+}
+
 export function demoteElevatedSession(): StaffUser | null {
   const current = users.find((row) => row.id === sessionId);
-  if (!current || !requiresPin(current.role)) return null;
+  if (!current || !requiresPin(current.role) || !hasStoredPin(current)) return null;
   const fallback = pickIdleFallback(current.id);
   if (!fallback) return null;
   sessionId = fallback.id;
@@ -126,14 +127,16 @@ export function demoteElevatedSession(): StaffUser | null {
 
 export function maybeDemoteIdleSession(): StaffUser | null {
   const current = users.find((row) => row.id === sessionId);
-  if (!current || !requiresPin(current.role)) return null;
+  if (!current || !requiresPin(current.role) || !hasStoredPin(current)) return null;
   if (Date.now() - readLastActivity() < STAFF_IDLE_MS) return null;
   return demoteElevatedSession();
 }
 
 export function msUntilStaffIdle(): number {
   const current = users.find((row) => row.id === sessionId);
-  if (!current || !requiresPin(current.role)) return Number.POSITIVE_INFINITY;
+  if (!current || !requiresPin(current.role) || !hasStoredPin(current)) {
+    return Number.POSITIVE_INFINITY;
+  }
   return STAFF_IDLE_MS - (Date.now() - readLastActivity());
 }
 
@@ -144,15 +147,6 @@ function publicUser(user: StaffUser): StaffUser {
 
 function countActiveAdmins() {
   return users.filter((row) => row.role === "admin" && row.status === "ativo").length;
-}
-
-function withSeedAdminPin(row: StaffUser): StaffUser {
-  const isAna =
-    row.id === "usr-admin" || normalizeEmail(row.email) === "ana.souza@hotelaurora.com";
-  if (isAna && row.role === "admin" && !row.pin) {
-    return { ...row, pin: SEED_ADMIN_PIN };
-  }
-  return { ...row };
 }
 
 export function hydrateStaffSession() {
@@ -173,7 +167,7 @@ export function dumpStaff(): StaffUser[] {
 }
 
 export function replaceStaff(rows: StaffUser[]) {
-  users = rows.map((row) => withSeedAdminPin({ ...row }));
+  users = rows.map((row) => ({ ...row }));
   seq = users.length + 1;
   if (!users.some((row) => row.id === sessionId && row.status === "ativo")) {
     sessionId = users.find((row) => row.status === "ativo")?.id ?? sessionId;
@@ -201,11 +195,10 @@ export function setSessionUser(id: string, pin?: string): StaffUser {
   if (!user) throw new Error("Usuário inativo ou não encontrado");
   const current = users.find((row) => row.id === sessionId) ?? users[0]!;
   if (current.id !== user.id && isPrivilegeElevation(current.role, user.role)) {
-    const seedOk = user.id === "usr-admin" && pin === SEED_ADMIN_PIN;
-    if (!user.pin && !seedOk) {
+    if (!user.pin) {
       throw new PinError("Defina um PIN de 4 dígitos para este perfil na Equipe.");
     }
-    if (user.pin && pin !== user.pin && !seedOk) {
+    if (pin !== user.pin) {
       throw new PinError("Acesso negado: PIN incorreto");
     }
     appendAudit({
