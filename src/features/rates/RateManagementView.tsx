@@ -1,3 +1,9 @@
+/**
+ * Tarifas: grelha, diária do site, segmentos de mercado e simulação.
+ * Pode: cadastrar segmento (grupo, % ou valor, ativo); simular por segmentId.
+ * Proibido: apagar semente; reprecificar reserva feita; mudar a grelha do ouro.
+ * Grava: rateStore (categories + segments) via useRates → cofre.
+ */
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -20,9 +26,13 @@ import { OffersView } from "./OffersView";
 import { PackagesView } from "./PackagesView";
 import { PromoCodesView } from "./PromoCodesView";
 import {
+  useAddMarketSegment,
   useAddSeason,
   useCategoryRates,
+  useMarketSegments,
   usePatchCategoryRate,
+  usePatchMarketSegment,
+  useRemoveMarketSegment,
   useRemoveSeason,
   useSeasons,
 } from "./useRates";
@@ -30,8 +40,22 @@ import { useRoomTypes } from "@/features/rooms/useRoomTypes";
 import { typeHoldsParty } from "@/features/rooms/roomTypeStore";
 import { saleCloseOnNight } from "@/features/reservations/overbooking";
 import { useCreateSaleClose, useRemoveSaleClose, useSaleCloses } from "@/features/reservations/useSaleCloses";
-import { fillBand, OCCUPANCY_FIELDS, OCCUPANCY_LABEL, clampSitePercent } from "./rateStore";
-import type { OccupancyField, RateBand, RateSegment, SeasonModifier } from "./rateStore";
+import {
+  fillBand,
+  OCCUPANCY_FIELDS,
+  OCCUPANCY_LABEL,
+  clampSitePercent,
+  BALCAO_SEGMENT_ID,
+  SITE_SEGMENT_ID,
+  MARKET_GROUP_LABEL,
+} from "./rateStore";
+import type {
+  OccupancyField,
+  RateBand,
+  SeasonModifier,
+  MarketGroupId,
+  MarketSegmentModifier,
+} from "./rateStore";
 
 const ROOM_TYPES: RoomType[] = ["Standard", "Luxo", "Suíte"];
 
@@ -64,6 +88,10 @@ export function RateManagementView() {
   const patchRate = usePatchCategoryRate();
   const addSeason = useAddSeason();
   const removeSeason = useRemoveSeason();
+  const { data: marketSegments = [] } = useMarketSegments();
+  const addSegment = useAddMarketSegment();
+  const patchSegment = usePatchMarketSegment();
+  const removeSegment = useRemoveMarketSegment();
 
   const [draft, setDraft] = useState<Record<string, RateBand>>();
   const matrix = useMemo(() => {
@@ -89,7 +117,12 @@ export function RateManagementView() {
   const [quotePax, setQuotePax] = useState(2);
   const [quoteChildren, setQuoteChildren] = useState(0);
   const [quotePromo, setQuotePromo] = useState("");
-  const [quoteSegment, setQuoteSegment] = useState<RateSegment>("balcao");
+  const [quoteSegmentId, setQuoteSegmentId] = useState(BALCAO_SEGMENT_ID);
+  const [segName, setSegName] = useState("");
+  const [segDescription, setSegDescription] = useState("");
+  const [segGroup, setSegGroup] = useState<MarketGroupId>("contrato");
+  const [segModifier, setSegModifier] = useState<MarketSegmentModifier>("percent");
+  const [segValue, setSegValue] = useState("-10");
   const [siteDraft, setSiteDraft] = useState<Partial<Record<RoomType, number>> | null>(null);
   const siteOf = (type: RoomType) =>
     siteDraft?.[type] ?? categories.find((row) => row.type === type)?.sitePercent ?? 0;
@@ -114,9 +147,10 @@ export function RateManagementView() {
     adults: quotePax,
     children: quoteChildren,
     promoCode: quotePromo || undefined,
-    segment: quoteSegment,
+    segmentId: quoteSegmentId,
     categories: liveCategories,
   });
+  const activeSegments = marketSegments.filter((row) => row.active);
   const [monthCursor, setMonthCursor] = useState(() => startOfMonth(parseISODate(TODAY_ISO)));
   const [paintMode, setPaintMode] = useState<"simular" | "fechar">("simular");
   const monthDays = useMemo(() => {
@@ -219,6 +253,25 @@ export function RateManagementView() {
       toast.success("Temporada cadastrada");
     } catch {
       toast.error("Não foi possível cadastrar a temporada.");
+    }
+  }
+
+  async function onAddSegment(event: FormEvent) {
+    event.preventDefault();
+    try {
+      await addSegment.mutateAsync({
+        name: segName,
+        description: segDescription,
+        groupId: segGroup,
+        active: true,
+        modifier: segModifier,
+        value: Number(segValue) || 0,
+      });
+      setSegName("");
+      setSegDescription("");
+      toast.success("Segmento cadastrado");
+    } catch {
+      toast.error("Não foi possível cadastrar o segmento.");
     }
   }
 
@@ -363,6 +416,158 @@ export function RateManagementView() {
                 );
               })}
             </div>
+          </section>
+
+          <section className="rounded-xl bg-card p-5 shadow-[var(--shadow-border)]">
+            <h2 className="font-display text-xl font-medium tracking-tight">
+              Segmentos de mercado
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Grupo (Transiente, Grupo, Contrato) e ajuste sobre a grelha. Balcão é a grelha
+              crua. Site continua usando a diária do site por tipo. Reserva já feita não muda.
+            </p>
+            <form onSubmit={onAddSegment} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+              <div className="grid gap-2 lg:col-span-2">
+                <Label htmlFor="seg-name">Nome</Label>
+                <Input
+                  id="seg-name"
+                  required
+                  value={segName}
+                  onChange={(event) => setSegName(event.target.value)}
+                  placeholder="Corporativo"
+                />
+              </div>
+              <div className="grid gap-2 lg:col-span-2">
+                <Label htmlFor="seg-desc">Descrição</Label>
+                <Input
+                  id="seg-desc"
+                  value={segDescription}
+                  onChange={(event) => setSegDescription(event.target.value)}
+                  placeholder="Contrato empresas"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="seg-group">Grupo</Label>
+                <select
+                  id="seg-group"
+                  className="h-9 rounded-lg border border-input bg-card px-3 text-sm"
+                  value={segGroup}
+                  onChange={(event) => setSegGroup(event.target.value as MarketGroupId)}
+                >
+                  {(Object.keys(MARKET_GROUP_LABEL) as MarketGroupId[]).map((id) => (
+                    <option key={id} value={id}>
+                      {MARKET_GROUP_LABEL[id]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="seg-mod">Ajuste</Label>
+                <select
+                  id="seg-mod"
+                  className="h-9 rounded-lg border border-input bg-card px-3 text-sm"
+                  value={segModifier}
+                  onChange={(event) =>
+                    setSegModifier(event.target.value as MarketSegmentModifier)
+                  }
+                >
+                  <option value="percent">Percentual %</option>
+                  <option value="fixed">Valor / diária</option>
+                </select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="seg-value">Valor</Label>
+                <Input
+                  id="seg-value"
+                  required
+                  inputMode="decimal"
+                  value={segValue}
+                  onChange={(event) => setSegValue(event.target.value)}
+                />
+              </div>
+              <div className="flex items-end">
+                <Button type="submit" disabled={addSegment.isPending}>
+                  Cadastrar segmento
+                </Button>
+              </div>
+            </form>
+            <ul className="mt-4 divide-y divide-border rounded-lg border border-border">
+              {marketSegments.map((row) => {
+                const custom = row.id !== BALCAO_SEGMENT_ID && row.id !== SITE_SEGMENT_ID;
+                return (
+                  <li
+                    key={row.id}
+                    className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+                  >
+                    <div>
+                      <p className="font-medium">
+                        {row.name}
+                        {row.seeded ? (
+                          <span className="ml-2 text-xs font-normal text-muted-foreground">
+                            pré-cadastrado
+                          </span>
+                        ) : null}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {MARKET_GROUP_LABEL[row.groupId]}
+                        {row.description ? ` · ${row.description}` : ""}
+                        {row.id === SITE_SEGMENT_ID
+                          ? " · ajuste por tipo na diária do site"
+                          : row.id === BALCAO_SEGMENT_ID
+                            ? " · grelha crua"
+                            : row.modifier === "percent"
+                              ? ` · ${row.value}%`
+                              : ` · ${row.value >= 0 ? "+" : ""}${formatCurrency(row.value)}/noite`}
+                        {row.active ? "" : " · inativo"}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {custom ? (
+                        <Input
+                          key={`${row.id}-${row.value}`}
+                          className="w-24"
+                          inputMode="decimal"
+                          defaultValue={String(row.value)}
+                          onBlur={(event) => {
+                            const next = Number(event.target.value);
+                            if (!Number.isFinite(next) || next === row.value) return;
+                            void patchSegment.mutateAsync({ id: row.id, value: next });
+                          }}
+                        />
+                      ) : null}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() =>
+                          void patchSegment.mutateAsync({ id: row.id, active: !row.active })
+                        }
+                      >
+                        {row.active ? "Desativar" : "Ativar"}
+                      </Button>
+                      {row.seeded ? null : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            void removeSegment.mutateAsync(row.id).then(
+                              () => toast.success("Segmento excluído"),
+                              (error) =>
+                                toast.error(
+                                  error instanceof Error
+                                    ? error.message
+                                    : "Não foi possível excluir.",
+                                ),
+                            );
+                          }}
+                        >
+                          Excluir
+                        </Button>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           </section>
 
           <section className="rounded-xl bg-card p-5 shadow-[var(--shadow-border)]">
@@ -558,22 +763,17 @@ export function RateManagementView() {
                     <option key={type}>{type}</option>
                   ))}
                 </select>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    type="button"
-                    variant={quoteSegment === "balcao" ? "default" : "outline"}
-                    onClick={() => setQuoteSegment("balcao")}
-                  >
-                    Balcão
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={quoteSegment === "site" ? "default" : "outline"}
-                    onClick={() => setQuoteSegment("site")}
-                  >
-                    Site
-                  </Button>
-                </div>
+                <select
+                  className="h-9 rounded-lg border border-input bg-card px-3 text-sm"
+                  value={quoteSegmentId}
+                  onChange={(event) => setQuoteSegmentId(event.target.value)}
+                >
+                  {activeSegments.map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {row.name}
+                    </option>
+                  ))}
+                </select>
                 <div className="grid grid-cols-2 gap-2">
                   <select
                     className="h-9 rounded-lg border border-input bg-card px-3 text-sm"

@@ -1,8 +1,9 @@
 /**
- * Tarifário: grelha de ocupação (A1) + extra acima do 4.º / 2.ª (A2).
- * Pode: 1–4 ADL, 1/2 CHD, +ADL, +CHD, segmento site (% sobre o balcão).
- * Proibido: alimentação na grelha, gravar tarifa por dia, mais segmentos.
- * Cofre: `categories`. Preço da noite: occupancyNightRate.
+ * Tarifário: grelha A1/A2 + segmentos de mercado.
+ * Pode: grupo Transiente/Grupo/Contrato; segmento % ou valor; Site semente usa sitePercent.
+ * Proibido: apagar semente (só desativar); apagar segmento em uso; reprecificar reserva feita.
+ * Cofre: categories + segments. Preço: quoteStay resolve por segmentId.
+ * Padrão ausente/inativo: Balcão = grelha crua. Vault antigo sem segments usa a semente.
  */
 import type { RoomType } from "@/mocks/hotelData";
 
@@ -11,6 +12,7 @@ export const rateKeys = {
   seasons: ["rates", "seasons"] as const,
   packages: ["rates", "packages"] as const,
   promos: ["rates", "promos"] as const,
+  segments: ["rates", "segments"] as const,
 };
 
 export type MealPlan = "cafe" | "pensao";
@@ -55,6 +57,29 @@ export const OCCUPANCY_LABEL: Record<OccupancyField, string> = {
 };
 
 export type RateSegment = "balcao" | "site";
+
+export type MarketGroupId = "transiente" | "grupo" | "contrato";
+export type MarketSegmentModifier = "percent" | "fixed";
+
+export const MARKET_GROUP_LABEL: Record<MarketGroupId, string> = {
+  transiente: "Transiente",
+  grupo: "Grupo",
+  contrato: "Contrato",
+};
+
+export const BALCAO_SEGMENT_ID = "seg-balcao";
+export const SITE_SEGMENT_ID = "seg-site";
+
+export type MarketSegment = {
+  id: string;
+  name: string;
+  description: string;
+  groupId: MarketGroupId;
+  active: boolean;
+  modifier: MarketSegmentModifier;
+  value: number;
+  seeded: boolean;
+};
 
 export type CategoryRate = {
   type: RoomType;
@@ -154,6 +179,59 @@ export function clampSitePercent(value: unknown) {
   return Math.min(80, Math.max(-80, Math.round(n)));
 }
 
+function isMarketGroup(value: unknown): value is MarketGroupId {
+  return value === "transiente" || value === "grupo" || value === "contrato";
+}
+
+export function normalizeMarketSegment(
+  row: Partial<MarketSegment> & { id: string },
+): MarketSegment {
+  const seeded = Boolean(row.seeded) || row.id === BALCAO_SEGMENT_ID || row.id === SITE_SEGMENT_ID;
+  const modifier: MarketSegmentModifier = row.modifier === "fixed" ? "fixed" : "percent";
+  return {
+    id: row.id,
+    name: (row.name ?? "").trim() || "Segmento",
+    description: (row.description ?? "").trim(),
+    groupId: isMarketGroup(row.groupId) ? row.groupId : "transiente",
+    active: row.active !== false,
+    modifier,
+    value: modifier === "percent" ? clampSitePercent(row.value) : Math.round(Number(row.value) || 0),
+    seeded,
+  };
+}
+
+const SEGMENT_SEED: MarketSegment[] = [
+  {
+    id: BALCAO_SEGMENT_ID,
+    name: "Balcão",
+    description: "Grelha crua da recepção.",
+    groupId: "transiente",
+    active: true,
+    modifier: "percent",
+    value: 0,
+    seeded: true,
+  },
+  {
+    id: SITE_SEGMENT_ID,
+    name: "Site",
+    description: "Vitrine pública. Ajuste por tipo na diária do site.",
+    groupId: "transiente",
+    active: true,
+    modifier: "percent",
+    value: 0,
+    seeded: true,
+  },
+];
+
+function restoreSegments(rows?: MarketSegment[]) {
+  if (!rows?.length) return SEGMENT_SEED.map((row) => ({ ...row }));
+  const next = rows.map((row) => normalizeMarketSegment(row));
+  for (const seed of SEGMENT_SEED) {
+    if (!next.some((row) => row.id === seed.id)) next.unshift({ ...seed });
+  }
+  return next;
+}
+
 const CATEGORY_SEED: CategoryRate[] = [
   withLegacy("Standard", band(280, 340, 320, 390), band(340, 400, 390, 470)),
   withLegacy("Luxo", band(470, 550, 540, 640), band(590, 680, 680, 790)),
@@ -242,9 +320,11 @@ let categories: CategoryRate[] = CATEGORY_SEED.map((row) => ({
 let seasons: Season[] = SEASON_SEED.map((row) => ({ ...row }));
 let packages: SpecialPackage[] = PACKAGE_SEED.map((row) => ({ ...row }));
 let promos: PromoCode[] = PROMO_SEED.map((row) => ({ ...row }));
+let segments: MarketSegment[] = restoreSegments();
 let seasonSeq = seasons.length + 1;
 let packageSeq = packages.length + 1;
 let promoSeq = promos.length + 1;
+let segmentSeq = segments.length + 1;
 
 export function listCategoryRates(): CategoryRate[] {
   return categories.map((row) => ({
@@ -259,6 +339,7 @@ export function replaceRates(next: {
   seasons: Season[];
   packages: SpecialPackage[];
   promos: PromoCode[];
+  segments?: MarketSegment[];
 }) {
   categories = next.categories.map((row) =>
     withLegacy(row.type, row.weekday, row.weekend, row.sitePercent),
@@ -266,9 +347,71 @@ export function replaceRates(next: {
   seasons = next.seasons.map((row) => ({ ...row }));
   packages = next.packages.map((row) => ({ ...row }));
   promos = next.promos.map((row) => ({ ...row }));
+  segments = restoreSegments(next.segments);
   seasonSeq = seasons.length + 1;
   packageSeq = packages.length + 1;
   promoSeq = promos.length + 1;
+  segmentSeq = segments.length + 1;
+}
+
+export function listMarketSegments(): MarketSegment[] {
+  return segments.map((row) => ({ ...row }));
+}
+
+export function findMarketSegment(id: string): MarketSegment | undefined {
+  const row = segments.find((item) => item.id === id);
+  return row ? { ...row } : undefined;
+}
+
+export function resolveQuoteSegment(
+  segmentId?: string,
+  legacy?: RateSegment,
+): MarketSegment {
+  if (segmentId) {
+    const found = segments.find((row) => row.id === segmentId);
+    if (found?.active) return { ...found };
+  } else if (legacy === "site") {
+    const site = segments.find((row) => row.id === SITE_SEGMENT_ID);
+    if (site?.active) return { ...site };
+  }
+  const balcao = segments.find((row) => row.id === BALCAO_SEGMENT_ID);
+  return balcao ? { ...balcao } : { ...SEGMENT_SEED[0]! };
+}
+
+export function addMarketSegment(
+  input: Omit<MarketSegment, "id" | "seeded">,
+): MarketSegment {
+  const item = normalizeMarketSegment({
+    ...input,
+    id: `seg-${String(segmentSeq++).padStart(3, "0")}`,
+    seeded: false,
+  });
+  segments = [...segments, item];
+  return { ...item };
+}
+
+export function patchMarketSegment(
+  id: string,
+  patch: Partial<Omit<MarketSegment, "id" | "seeded">>,
+): MarketSegment {
+  const index = segments.findIndex((row) => row.id === id);
+  if (index < 0) throw new Error("Segmento não encontrado");
+  const current = segments[index]!;
+  const next = normalizeMarketSegment({
+    ...current,
+    ...patch,
+    id: current.id,
+    seeded: current.seeded,
+  });
+  segments = [...segments.slice(0, index), next, ...segments.slice(index + 1)];
+  return { ...next };
+}
+
+export function removeMarketSegment(id: string): void {
+  const row = segments.find((item) => item.id === id);
+  if (!row) throw new Error("Segmento não encontrado");
+  if (row.seeded) throw new Error("Segmento pré-cadastrado não pode ser excluído");
+  segments = segments.filter((item) => item.id !== id);
 }
 
 export function pickNightRate(

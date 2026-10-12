@@ -1,3 +1,10 @@
+/**
+ * Reservas: cria, lista, confirma, check-in/out.
+ * Pode: gravar segmentId na criação; cotar com quoteStay(segmentId).
+ * Proibido: reprecificar se o catálogo de segmento mudar; inventar preço na view.
+ * Ausente/inativo → padrão Balcão. Antigas sem segmentId herdam o padrão.
+ * Cofre: listReservations / replaceReservations.
+ */
 import {
   reservations as seedReservations,
   roomById,
@@ -10,6 +17,11 @@ import {
 } from "@/mocks/hotelData";
 import { addDays } from "date-fns";
 import { quoteStay, type QuoteOptions } from "@/features/rates/pricing";
+import {
+  BALCAO_SEGMENT_ID,
+  SITE_SEGMENT_ID,
+  findMarketSegment,
+} from "@/features/rates/rateStore";
 import { assertValidEmail } from "@/lib/email";
 import { assertValidPeriod } from "@/lib/hotel/rules";
 import { assertNoOverbooking, availableRoomsByType } from "./overbooking";
@@ -26,7 +38,9 @@ let store: Reservation[] = seedReservations.map((row) => ({ ...row }));
 function applyQuote(reservation: Reservation): Reservation {
   const room = roomById(reservation.roomId);
   if (!room) return reservation;
-  const quote = quoteStay(room.type, reservation.checkIn, reservation.checkOut);
+  const quote = quoteStay(room.type, reservation.checkIn, reservation.checkOut, {
+    segmentId: reservation.segmentId,
+  });
   return {
     ...reservation,
     nightlyRate: quote.averageNight,
@@ -105,6 +119,7 @@ export function createReservation(input: {
   guestPhone?: string;
   holdUntil?: string;
   pix?: boolean;
+  segmentId?: string;
 }): Reservation {
   const room = roomById(input.roomId);
   if (!room) throw new Error("Quarto não encontrado");
@@ -125,10 +140,16 @@ export function createReservation(input: {
     listSaleCloses(),
   );
   const publicStay = (input.origin ?? "Balcão") === "Link público";
+  const requested = input.segmentId ? findMarketSegment(input.segmentId) : undefined;
+  const segmentId = requested?.active
+    ? requested.id
+    : publicStay
+      ? SITE_SEGMENT_ID
+      : BALCAO_SEGMENT_ID;
   const quote = quoteStay(room.type, input.checkIn, input.checkOut, {
     adults,
     children,
-    segment: publicStay ? "site" : "balcao",
+    segmentId,
     pix: publicStay ? Boolean(input.pix) : false,
   });
   const email = input.guestEmail.trim();
@@ -144,6 +165,7 @@ export function createReservation(input: {
     nightlyRate: quote.averageNight,
     totalAmount: quote.total,
     origin: input.origin ?? "Balcão",
+    segmentId,
     createdAt: TODAY_ISO,
     notes: input.notes,
     guestPhone: input.guestPhone?.trim() || undefined,

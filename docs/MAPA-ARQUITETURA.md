@@ -2,7 +2,7 @@
 
 Objetivo: **não reler o repositório**. Abra 1–3 arquivos da tabela. Se o tema não estiver aqui, ele ainda não existe.
 
-Produto: Hotel Aurora PMS v1.32.56  
+Produto: Hotel Aurora PMS v1.32.57  
 Repo: https://github.com/Rafaelmxz/Hotel-aurora-v1.32.4
 
 ---
@@ -70,8 +70,9 @@ Preço, conflito e status **não** nascem na view. Nascem no store ou em `src/li
 ### Preço
 | Assunto | Arquivo |
 |---|---|
-| `quoteStay` / ocupação ADL+CHD / temporada | `src/features/rates/pricing.ts` + `rateStore.ts` |
+| `quoteStay` / ocupação ADL+CHD / temporada / segmento | `src/features/rates/pricing.ts` + `rateStore.ts` |
 | Tarifas | `src/features/rates/rateStore.ts` + `RateManagementView.tsx` |
+| Segmentos de mercado | `src/features/rates/rateStore.ts` (`MarketSegment`) + `RateManagementView.tsx` |
 | Ofertas | `src/features/rates/offerStore.ts` + `OffersView.tsx` |
 | Pacotes / cupons | `src/features/rates/PackagesView.tsx` / `PromoCodesView.tsx` |
 
@@ -117,7 +118,6 @@ Preço, conflito e status **não** nascem na view. Nascem no store ou em `src/li
 - Spaces
 - Matriz MinLOS/MaxLOS por data
 - GA4 / widget embed
-- Segmentos de mercado
 - Catálogo livre de add-ons (só os 3 de `catalog.ts`)
 
 Se precisar disso: recorte **novo** — criar arquivo + mover a linha de `INDICE.md` C → B.

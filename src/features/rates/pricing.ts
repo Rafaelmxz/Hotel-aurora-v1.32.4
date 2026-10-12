@@ -1,3 +1,9 @@
+/**
+ * Cotação da estadia a partir da grelha e do segmento.
+ * Pode: segmentId ativo; legado segment site|balcao; sitePercent só no segmento Site.
+ * Proibido: recalcular reserva já gravada; inventar preço na view.
+ * Ausente ou inativo → Balcão (grelha crua). Store: rateStore.
+ */
 import { addDays, differenceInCalendarDays } from "date-fns";
 import { parseISODate, type RoomType } from "@/mocks/hotelData";
 import {
@@ -8,11 +14,14 @@ import {
   type Offer,
 } from "./offerStore";
 import {
+  BALCAO_SEGMENT_ID,
+  SITE_SEGMENT_ID,
   findPromo,
   listCategoryRates,
   listPackages,
   listSeasons,
   occupancyNightRate,
+  resolveQuoteSegment,
   type CategoryRate,
   type MealPlan,
   type PromoCode,
@@ -59,6 +68,7 @@ export type QuoteOptions = {
   promoCode?: string;
   pix?: boolean;
   segment?: "balcao" | "site";
+  segmentId?: string;
   categories?: CategoryRate[];
   seasons?: Season[];
 };
@@ -162,6 +172,7 @@ export function quoteStay(
   const nights = Math.max(1, differenceInCalendarDays(end, start));
   const category = (options.categories ?? listCategoryRates()).find((row) => row.type === roomType);
   const allSeasons = listSeasons();
+  const resolved = resolveQuoteSegment(options.segmentId, options.segment);
   const nightsDetail: NightQuote[] = [];
 
   for (let i = 0; i < nights; i += 1) {
@@ -171,9 +182,17 @@ export function quoteStay(
     const raw = category
       ? occupancyNightRate(category, weekendNight, adults, children)
       : 0;
-    const siteCut =
-      options.segment === "site" ? Math.round((category?.sitePercent ?? 0)) : 0;
-    const base = Math.max(0, Math.round(raw * (1 + siteCut / 100)));
+    let base = raw;
+    if (resolved.id === SITE_SEGMENT_ID) {
+      const siteCut = Math.round(category?.sitePercent ?? 0);
+      base = Math.max(0, Math.round(raw * (1 + siteCut / 100)));
+    } else if (resolved.id !== BALCAO_SEGMENT_ID) {
+      if (resolved.modifier === "percent") {
+        base = Math.max(0, Math.round(raw * (1 + resolved.value / 100)));
+      } else {
+        base = Math.max(0, Math.round(raw + resolved.value));
+      }
+    }
     const season = strongestSeason(base, seasonsOn(dateIso, allSeasons));
     let amount = season ? applySeason(base, season) : base;
     const offer = strongestOffer(

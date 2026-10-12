@@ -1,4 +1,4 @@
-# Índice — Hotel Aurora PMS v1.32.56
+# Índice — Hotel Aurora PMS v1.32.57
 
 Use **antes** de abrir código. `[x]` = no produto. Não misture um `[ ]` com outro no mesmo recorte.
 
@@ -83,7 +83,7 @@ Use **antes** de abrir código. `[x]` = no produto. Não misture um `[ ]` com ou
 ### Configuração da propriedade
 - [x] Cadastro rico de tipo de quarto (fotos, comodidades, adultos/crianças na tarifa)
 - [x] Horários e regras de cancelamento editáveis de ponta a ponta
-- [ ] Segmentos de mercado (balcão / site / corporativo)
+- [x] Segmentos de mercado (balcão / site / corporativo)
 - [ ] Catálogo livre de Experiências (não só os 3 fixos)
 - [ ] Preço e texto das Experiências só em Site / Hotel
 

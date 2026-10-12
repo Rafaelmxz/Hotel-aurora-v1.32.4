@@ -122,6 +122,7 @@ export function useCreateReservation() {
       children?: number;
       guestPhone?: string;
       holdUntil?: string;
+      segmentId?: string;
     }) => {
       const created = createReservation(input);
       appendAudit({

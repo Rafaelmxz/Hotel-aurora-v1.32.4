@@ -4,7 +4,13 @@ import type { ConsumoItem, PagamentoItem } from "@/features/reservations/types/f
 import type { CashClose } from "@/features/finance/cashStore";
 import type { PropertyProfile } from "@/features/settings/propertyStore";
 import type { BookingEngineConfig } from "@/features/direct-booking/bookingStore";
-import type { CategoryRate, PromoCode, Season, SpecialPackage } from "@/features/rates/rateStore";
+import type {
+  CategoryRate,
+  MarketSegment,
+  PromoCode,
+  Season,
+  SpecialPackage,
+} from "@/features/rates/rateStore";
 import type { Offer } from "@/features/rates/offerStore";
 import type { StaffUser } from "@/features/users/userStore";
 import type { AuditEvent } from "@/features/audit/auditStore";
@@ -36,6 +42,7 @@ export type HotelVault = {
     seasons: Season[];
     packages: SpecialPackage[];
     promos: PromoCode[];
+    segments?: MarketSegment[];
   };
   offers: Offer[];
   staff: StaffUser[];

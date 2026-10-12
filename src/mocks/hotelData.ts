@@ -55,6 +55,7 @@ export type Reservation = {
   totalAmount: number;
   nightlyRate: number;
   origin: string;
+  segmentId?: string;
   createdAt?: string;
   notes?: string;
   holdUntil?: string;

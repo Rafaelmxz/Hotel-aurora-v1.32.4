@@ -13,6 +13,7 @@ import {
 import {
   replaceRates,
   listCategoryRates,
+  listMarketSegments,
   listPackages,
   listPromos,
   listSeasons,
@@ -62,6 +63,7 @@ export function snapshotVault(): HotelVault {
       seasons: listSeasons(),
       packages: listPackages(),
       promos: listPromos(),
+      segments: listMarketSegments(),
     },
     offers: listOffers(),
     staff: dumpStaff(),

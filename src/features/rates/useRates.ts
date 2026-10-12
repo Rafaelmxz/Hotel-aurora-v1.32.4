@@ -3,23 +3,29 @@ import type { RoomType } from "@/mocks/hotelData";
 import { reservationKeys } from "@/features/reservations/reservationStore";
 import { folioKeys } from "@/features/reservations/folioStore";
 import {
+  addMarketSegment,
   addPackage,
   addPromo,
   addSeason,
   listCategoryRates,
+  listMarketSegments,
   listPackages,
   listPromos,
   listSeasons,
   patchCategoryRate,
+  patchMarketSegment,
   rateKeys,
+  removeMarketSegment,
   removePackage,
   removePromo,
   removeSeason,
   type CategoryRate,
+  type MarketSegment,
   type PromoCode,
   type Season,
   type SpecialPackage,
 } from "./rateStore";
+import { listReservations } from "@/features/reservations/reservationStore";
 import { persistVault } from "@/lib/hotel/hydrate";
 
 export function useCategoryRates() {
@@ -143,6 +149,60 @@ export function useRemovePromo() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: rateKeys.promos });
+    },
+  });
+}
+
+export function useMarketSegments() {
+  return useQuery({
+    queryKey: rateKeys.segments,
+    queryFn: async () => listMarketSegments(),
+    initialData: () => listMarketSegments(),
+  });
+}
+
+export function useAddMarketSegment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: Omit<MarketSegment, "id" | "seeded">) => {
+      const row = addMarketSegment(input);
+      await persistVault();
+      return row;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: rateKeys.segments });
+    },
+  });
+}
+
+export function usePatchMarketSegment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      id: string;
+    } & Partial<Omit<MarketSegment, "id" | "seeded">>) => {
+      const { id, ...patch } = input;
+      const row = patchMarketSegment(id, patch);
+      await persistVault();
+      return row;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: rateKeys.segments });
+    },
+  });
+}
+
+export function useRemoveMarketSegment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const used = listReservations().some((row) => row.segmentId === id);
+      if (used) throw new Error("Segmento em uso não pode ser excluído");
+      removeMarketSegment(id);
+      await persistVault();
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: rateKeys.segments });
     },
   });
 }

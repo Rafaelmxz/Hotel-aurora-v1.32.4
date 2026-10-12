@@ -1,7 +1,7 @@
 /**
  * Ficha do balcão: datas → pessoas → quarto → hóspede → origem → criar.
- * Pode: pré-reserva pendente com prazo, ou reserva confirmada.
- * Proibido: OTA, tarifário por segmento, Experiências, Pix, folio extra.
+ * Pode: pré-reserva pendente com prazo, ou reserva confirmada; segmento de tarifa.
+ * Proibido: OTA, Experiências, Pix, folio extra.
  * Grava: reservationStore (cofre). Preço: quoteStay. Vaga: overbooking.
  * Lista risca ocupado / bloqueado / venda fechada / tipo que não cabe.
  */
@@ -25,6 +25,8 @@ import { useProperty } from "@/features/settings/useProperty";
 import { cn } from "@/lib/utils";
 import { quoteNewReservation } from "./reservationStore";
 import { useCreateReservation, useReservations } from "./useReservations";
+import { useMarketSegments } from "@/features/rates/useRates";
+import { BALCAO_SEGMENT_ID } from "@/features/rates/rateStore";
 import { useBlocks } from "./useBlocks";
 import { useSaleCloses } from "./useSaleCloses";
 import {
@@ -62,12 +64,14 @@ export function CreateReservationModal({
   const { data: blocks = [] } = useBlocks();
   const { data: saleCloses = [] } = useSaleCloses();
   const { data: property } = useProperty();
+  const { data: marketSegments = [] } = useMarketSegments();
   const create = useCreateReservation();
   const [guest, setGuest] = useState<Guest | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [origin, setOrigin] = useState<(typeof ORIGINS)[number]>("Balcão");
+  const [segmentId, setSegmentId] = useState(BALCAO_SEGMENT_ID);
   const [adults, setAdults] = useState(2);
   const [children, setChildren] = useState(0);
   const [roomId, setRoomId] = useState("");
@@ -84,6 +88,7 @@ export function CreateReservationModal({
     setPhone("");
     setEmail("");
     setOrigin("Balcão");
+    setSegmentId(BALCAO_SEGMENT_ID);
     setAdults(2);
     setChildren(0);
     const inDate = draft?.checkIn && draft.checkIn >= TODAY_ISO ? draft.checkIn : TODAY_ISO;
@@ -137,11 +142,11 @@ export function CreateReservationModal({
   const quote = useMemo(() => {
     if (!roomId || !checkIn || !checkOut) return null;
     try {
-      return quoteNewReservation(roomId, checkIn, checkOut, { adults, children });
+      return quoteNewReservation(roomId, checkIn, checkOut, { adults, children, segmentId });
     } catch {
       return null;
     }
-  }, [roomId, checkIn, checkOut, adults, children]);
+  }, [roomId, checkIn, checkOut, adults, children, segmentId]);
 
   const holdLabel = useMemo(() => {
     const hours = property?.cancelFreeHours ?? 48;
@@ -199,6 +204,7 @@ export function CreateReservationModal({
         adults,
         children,
         origin,
+        segmentId,
         notes: extra || undefined,
         status: mode === "hold" ? "pendente" : "confirmada",
         holdUntil: mode === "hold" ? holdLabel.iso : undefined,
@@ -438,20 +444,39 @@ export function CreateReservationModal({
               </div>
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="new-origin">Origem</Label>
-              <select
-                id="new-origin"
-                className="h-11 rounded-md border border-input bg-card px-3 text-sm"
-                value={origin}
-                onChange={(event) => setOrigin(event.target.value as (typeof ORIGINS)[number])}
-              >
-                {ORIGINS.map((row) => (
-                  <option key={row} value={row}>
-                    {row}
-                  </option>
-                ))}
-              </select>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="new-origin">Origem</Label>
+                <select
+                  id="new-origin"
+                  className="h-11 rounded-md border border-input bg-card px-3 text-sm"
+                  value={origin}
+                  onChange={(event) => setOrigin(event.target.value as (typeof ORIGINS)[number])}
+                >
+                  {ORIGINS.map((row) => (
+                    <option key={row} value={row}>
+                      {row}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="new-segment">Segmento</Label>
+                <select
+                  id="new-segment"
+                  className="h-11 rounded-md border border-input bg-card px-3 text-sm"
+                  value={segmentId}
+                  onChange={(event) => setSegmentId(event.target.value)}
+                >
+                  {marketSegments
+                    .filter((row) => row.active)
+                    .map((row) => (
+                      <option key={row.id} value={row.id}>
+                        {row.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
             </div>
 
             {quote ? (
