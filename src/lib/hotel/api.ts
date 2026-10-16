@@ -2,7 +2,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { assertValidEmail } from "@/lib/email";
-import { VAULT_ID, type HotelMembershipRole, type HotelVault, type PublicStayPayload } from "./types";
+import {
+  VAULT_ID,
+  type HotelMembershipRole,
+  type HotelVault,
+  type PublicStayPayload,
+  type PublicStayRates,
+} from "./types";
+import { SITE_SEGMENT_ID } from "@/features/rates/rateStore";
 import {
   isSiteBooking,
   mergeConsumos,
@@ -215,6 +222,25 @@ export const pushHotelVaultFn = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+function publicRatesOf(rates: HotelVault["rates"] | undefined): PublicStayRates | null {
+  if (!rates) return null;
+  const site = rates.segments?.find((row) => row.id === SITE_SEGMENT_ID);
+  return {
+    categories: rates.categories,
+    seasons: rates.seasons,
+    packages: rates.packages,
+    promos: [],
+    ...(site ? { segments: [{ id: SITE_SEGMENT_ID, active: site.active !== false }] } : {}),
+  };
+}
+
+function withoutPromoCatalog<T>(value: T): T {
+  return JSON.parse(
+    JSON.stringify(value, (key, nested) => (key === "promos" ? [] : nested)),
+  ) as T;
+}
+
+/** Vitrine anônima: rates sem segmentos internos; cofre autenticado não passa por aqui. */
 export const pullPublicStayFn = createServerFn({ method: "GET" }).handler(async () => {
   const { getSql } = await import("@/lib/db");
   const sql = await getSql();
@@ -229,6 +255,8 @@ export const pullPublicStayFn = createServerFn({ method: "GET" }).handler(async 
       (roomId) => (vault?.rooms ?? []).find((room) => room.id === roomId)?.type,
     ),
   );
+  const rates = publicRatesOf(vault?.rates);
+  if (rates) rates.promos = [];
   const payload: PublicStayPayload = {
     hasVault: Boolean(vault),
     rooms: vault?.rooms ?? [],
@@ -245,12 +273,48 @@ export const pullPublicStayFn = createServerFn({ method: "GET" }).handler(async 
             vault.property?.cancellationPolicy ?? vault.booking.cancellationPolicy,
         }
       : null,
-    rates: vault?.rates ?? null,
+    rates,
     offers: vault?.offers ?? null,
     roomTypes: vault?.roomTypes ?? null,
   };
-  return payload;
+  if (payload.rates) payload.rates.promos = [];
+  return withoutPromoCatalog(payload);
 });
+
+const lookupPromoSchema = z.object({
+  code: z.string().trim().min(1).max(40),
+  checkIn: z.string().regex(ISO_DATE),
+  subtotal: z.number().nonnegative().optional(),
+});
+
+/** Visitante manda o código; resposta só se vale e o desconto. Não incrementa uso. */
+export const lookupPublicPromoFn = createServerFn({ method: "POST" })
+  .validator(lookupPromoSchema)
+  .handler(async ({ data }) => {
+    const { getSql } = await import("@/lib/db");
+    const sql = await getSql();
+    const vault = await loadVault(sql);
+    const code = data.code.trim().toUpperCase();
+    const found = vault?.rates?.promos?.find(
+      (row) => row.code.trim().toUpperCase() === code,
+    );
+    if (
+      !found ||
+      !found.active ||
+      found.usageCount >= found.usageLimit ||
+      data.checkIn < found.start ||
+      data.checkIn > found.end
+    ) {
+      return { valid: false as const, discount: 0 };
+    }
+    const discount =
+      data.subtotal == null
+        ? 0
+        : found.kind === "percent"
+          ? Math.round(data.subtotal * (found.value / 100))
+          : Math.min(data.subtotal, Math.round(found.value));
+    return { valid: true as const, discount };
+  });
 
 const publicBookingSchema = z.object({
   id: z.string().min(3).max(80),

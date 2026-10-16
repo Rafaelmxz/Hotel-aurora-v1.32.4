@@ -57,6 +57,26 @@ export type OccupancyStay = {
   status: ReservationStatus;
 };
 
+/** Fatia da vitrine: só o segmento Site, sem contratos nem ajuste interno. */
+export type PublicSiteSegment = {
+  id: string;
+  active: boolean;
+};
+
+export type PublicStayRates = {
+  categories: CategoryRate[];
+  seasons: Season[];
+  packages: SpecialPackage[];
+  /** Vitrine: lista vazia. Cupom vale via lookup no servidor, sem o catálogo. */
+  promos?: [];
+  segments?: PublicSiteSegment[];
+};
+
+export type PublicPromoLookup = {
+  valid: boolean;
+  discount: number;
+};
+
 export type PublicStayPayload = {
   hasVault: boolean;
   rooms: RoomState[];
@@ -65,7 +85,7 @@ export type PublicStayPayload = {
   saleCloses?: SaleClose[] | null;
   property: PropertyProfile | null;
   booking: BookingEngineConfig | null;
-  rates: HotelVault["rates"] | null;
+  rates: PublicStayRates | null;
   offers: Offer[] | null;
   roomTypes?: RoomTypeProfile[] | null;
 };

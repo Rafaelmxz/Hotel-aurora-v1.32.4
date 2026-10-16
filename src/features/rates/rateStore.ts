@@ -223,7 +223,7 @@ const SEGMENT_SEED: MarketSegment[] = [
   },
 ];
 
-function restoreSegments(rows?: MarketSegment[]) {
+function restoreSegments(rows?: Array<Partial<MarketSegment> & { id: string }>) {
   if (!rows?.length) return SEGMENT_SEED.map((row) => ({ ...row }));
   const next = rows.map((row) => normalizeMarketSegment(row));
   for (const seed of SEGMENT_SEED) {
@@ -338,15 +338,15 @@ export function replaceRates(next: {
   categories: CategoryRate[];
   seasons: Season[];
   packages: SpecialPackage[];
-  promos: PromoCode[];
-  segments?: MarketSegment[];
+  promos?: PromoCode[];
+  segments?: Array<Partial<MarketSegment> & { id: string }>;
 }) {
   categories = next.categories.map((row) =>
     withLegacy(row.type, row.weekday, row.weekend, row.sitePercent),
   );
   seasons = next.seasons.map((row) => ({ ...row }));
   packages = next.packages.map((row) => ({ ...row }));
-  promos = next.promos.map((row) => ({ ...row }));
+  promos = (next.promos ?? []).map((row) => ({ ...row }));
   segments = restoreSegments(next.segments);
   seasonSeq = seasons.length + 1;
   packageSeq = packages.length + 1;
