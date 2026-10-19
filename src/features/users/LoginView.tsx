@@ -6,13 +6,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { GROK_PROVIDERS, authClient, authEnabled, signIn } from "@/lib/auth/client";
+import { TEST_ADMIN_LOGIN } from "@/lib/auth/test-credentials";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 
 /**
  * Tela /login — e-mail/senha e Google/X.
  * Pode: criar conta, entrar, mandar para /login/2fa se o plugin devolver twoFactorRedirect.
- * Proibido: pedir TOTP em Google/X; forçar MFA; mexer no PIN da Equipe.
+ * Pré-preenche Ana Souza + senha 1234 (PGLite local) para entrar como admin.
+ * Senha mínima 4 caracteres (senha da Ana). Bruno continua recepcao1 se o e-mail for trocado.
+ * Proibido: pedir TOTP em Google/X; forçar MFA; gravar PIN neste formulário.
  * Sessão: cookie Better Auth depois do login (ou depois de /login/2fa).
+ * Cargo da sessão: bindAuthToStaff + PIN da Equipe (Ana 1234) se a sessão atual for recepção.
  */
 type Mode = "entrar" | "criar";
 
@@ -22,7 +26,7 @@ function authErrorMessage(message: string | undefined) {
   if (/invalid email or password/i.test(text) || /invalid credentials/i.test(text)) {
     return "E-mail ou senha inválidos.";
   }
-  if (/password/i.test(text)) return "A senha deve ter pelo menos 8 caracteres.";
+  if (/password/i.test(text)) return "A senha deve ter pelo menos 4 caracteres.";
   if (/invalid email/i.test(text)) return "Informe um e-mail válido, no formato nome@dominio.com.";
   return "Não foi possível entrar. Tente de novo.";
 }
@@ -59,8 +63,8 @@ export function LoginView() {
   const { user } = useCurrentUserState();
   const [mode, setMode] = useState<Mode>("entrar");
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState<string>(TEST_ADMIN_LOGIN.email);
+  const [password, setPassword] = useState<string>(TEST_ADMIN_LOGIN.password);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -157,7 +161,7 @@ export function LoginView() {
                   required
                   type="password"
                   autoComplete={mode === "criar" ? "new-password" : "current-password"}
-                  minLength={8}
+                  minLength={4}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                 />

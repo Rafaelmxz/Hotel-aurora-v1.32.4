@@ -1,7 +1,9 @@
 /**
  * Equipe, PIN de elevação e idle da sessão elevada.
- * Pode: elevação só com PIN gravado na Equipe; idle 15 min derruba quem tem PIN; sem PIN não derruba.
- * Proibido: chave-mestra; nascer com PIN; reelevar no F5 pelo e-mail; mexer no cookie auth; hash; MFA; gravar o PIN no diário.
+ * Pode: subir para admin com o PIN 1234 da Ana (semente local); idle 15 min derruba quem tem PIN.
+ * Cofre da Ana sem PIN recebe 1234 na hidratação. Demais perfis continuam sem PIN.
+ * Proibido: chave-mestra para toda a equipe; reelevar no F5 pelo e-mail; mexer no cookie auth.
+ * Proibido: hash do PIN; MFA; gravar o PIN no diário; Neon.
  * Fallback idle: recepcionista (ou governança/financeiro). Sem fallback, não derruba.
  * Store: este arquivo. Idle UI: useIdleStaffTimeout. PIN: patchStaff na Equipe.
  */
@@ -32,13 +34,23 @@ export class PinError extends Error {
   }
 }
 
+const ANA_EMAIL = "ana.souza@hotelaurora.com";
+const SEED_ANA_PIN = "1234";
+
+function withSeedAnaPin(row: StaffUser): StaffUser {
+  const isAna = row.id === "usr-admin" || normalizeEmail(row.email) === ANA_EMAIL;
+  if (!isAna || row.pin) return { ...row };
+  return { ...row, pin: SEED_ANA_PIN };
+}
+
 const SEED: StaffUser[] = [
   {
     id: "usr-admin",
     name: "Ana Souza",
-    email: "ana.souza@hotelaurora.com",
+    email: ANA_EMAIL,
     role: "admin",
     status: "ativo",
+    pin: SEED_ANA_PIN,
   },
   {
     id: "usr-gerente",
@@ -167,7 +179,7 @@ export function dumpStaff(): StaffUser[] {
 }
 
 export function replaceStaff(rows: StaffUser[]) {
-  users = rows.map((row) => ({ ...row }));
+  users = rows.map((row) => withSeedAnaPin(row));
   seq = users.length + 1;
   if (!users.some((row) => row.id === sessionId && row.status === "ativo")) {
     sessionId = users.find((row) => row.status === "ativo")?.id ?? sessionId;

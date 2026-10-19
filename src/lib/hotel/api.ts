@@ -6,6 +6,8 @@ import {
   VAULT_ID,
   type HotelMembershipRole,
   type HotelVault,
+  type PublicBlock,
+  type PublicProperty,
   type PublicStayPayload,
   type PublicStayRates,
 } from "./types";
@@ -234,13 +236,38 @@ function publicRatesOf(rates: HotelVault["rates"] | undefined): PublicStayRates 
   };
 }
 
+function publicPropertyOf(
+  property: HotelVault["property"] | undefined | null,
+): PublicProperty | null {
+  if (!property) return null;
+  return {
+    name: property.name ?? "",
+    address: property.address ?? "",
+    phone: property.phone ?? "",
+    checkInTime: property.checkInTime ?? "",
+    checkOutTime: property.checkOutTime ?? "",
+    cancellationPolicy: property.cancellationPolicy ?? "",
+    pixKey: property.pixKey ?? "",
+    pixPayee: property.pixPayee ?? "",
+  };
+}
+
+function publicBlocksOf(blocks: HotelVault["blocks"] | undefined | null): PublicBlock[] {
+  if (!Array.isArray(blocks)) return [];
+  return blocks.map((row) => ({
+    roomId: row.roomId,
+    checkIn: row.checkIn,
+    checkOut: row.checkOut,
+  }));
+}
+
 function withoutPromoCatalog<T>(value: T): T {
   return JSON.parse(
     JSON.stringify(value, (key, nested) => (key === "promos" ? [] : nested)),
   ) as T;
 }
 
-/** Vitrine anônima: rates sem segmentos internos; cofre autenticado não passa por aqui. */
+/** Vitrine anônima: property/blocks sem metadados internos; cofre autenticado não passa por aqui. */
 export const pullPublicStayFn = createServerFn({ method: "GET" }).handler(async () => {
   const { getSql } = await import("@/lib/db");
   const sql = await getSql();
@@ -261,9 +288,9 @@ export const pullPublicStayFn = createServerFn({ method: "GET" }).handler(async 
     hasVault: Boolean(vault),
     rooms: vault?.rooms ?? [],
     occupancy,
-    blocks: vault?.blocks ?? [],
+    blocks: publicBlocksOf(vault?.blocks),
     saleCloses: vault?.saleCloses ?? null,
-    property: vault?.property ?? null,
+    property: publicPropertyOf(vault?.property),
     booking: vault?.booking
       ? {
           ...vault.booking,

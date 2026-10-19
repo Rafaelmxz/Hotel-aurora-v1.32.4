@@ -1,4 +1,4 @@
-# Índice — Hotel Aurora PMS v1.32.57
+# Índice — Hotel Aurora PMS v1.32.58
 
 Use **antes** de abrir código. `[x]` = no produto. Não misture um `[ ]` com outro no mesmo recorte.
 
@@ -100,12 +100,14 @@ Use **antes** de abrir código. `[x]` = no produto. Não misture um `[ ]` com ou
 - [ ] Analytics (GA4) — só se o hotel pedir
 
 ### Segurança
-- [x] PIN de elevação: só o gravado na Equipe; ninguém nasce com PIN; 1234 não é chave-mestra; idle só derruba quem tem PIN gravado
+- [x] PIN de elevação: só o gravado na Equipe; 1234 não é chave-mestra dos outros cargos; idle só derruba quem tem PIN gravado
+- [x] Ana Souza (admin de teste local): senha e PIN 1234 na semente; Bruno permanece `recepcao1`
 - [x] MFA (TOTP opcional em `/conta`; desafio `/login/2fa` no e-mail/senha; Google/X sem 2FA)
 - [x] Política de sessão / timeout (idle 15 min derruba admin/gerente para recepção; modal de PIN sempre vazio)
 - [x] Auditoria (“quem mudou o quê”) — diário no cofre + lista só leitura no final de Equipe (admin)
 - [x] Payload público da vitrine: só o segmento Site `{ id, active }`; demais segmentos ficam no cofre autenticado
 - [x] Payload público da vitrine: cupons (`rates.promos`) não vão na lista; lookup no servidor devolve só se vale e o desconto
+- [x] Payload público da vitrine: `property` só nome/endereço/telefone/horários/Pix/cancelamento; `blocks` só `roomId` + datas
 
 ### Fora desta linha (não puxar no mesmo recorte)
 - [ ] Channel Manager / OTAs

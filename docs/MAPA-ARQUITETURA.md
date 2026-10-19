@@ -2,7 +2,7 @@
 
 Objetivo: **não reler o repositório**. Abra 1–3 arquivos da tabela. Se o tema não estiver aqui, ele ainda não existe.
 
-Produto: Hotel Aurora PMS v1.32.57  
+Produto: Hotel Aurora PMS v1.32.58  
 Repo: https://github.com/Rafaelmxz/Hotel-aurora-v1.32.4
 
 ---

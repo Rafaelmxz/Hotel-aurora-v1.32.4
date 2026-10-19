@@ -77,13 +77,32 @@ export type PublicPromoLookup = {
   discount: number;
 };
 
+/** Fatia da vitrine: o que /reservar mostra. Sem CNPJ nem flags internas. */
+export type PublicProperty = {
+  name: string;
+  address: string;
+  phone: string;
+  checkInTime: string;
+  checkOutTime: string;
+  cancellationPolicy: string;
+  pixKey: string;
+  pixPayee: string;
+};
+
+/** Fatia da vitrine: só o que fecha a vaga. Sem motivo nem auditoria. */
+export type PublicBlock = {
+  roomId: string;
+  checkIn: string;
+  checkOut: string;
+};
+
 export type PublicStayPayload = {
   hasVault: boolean;
   rooms: RoomState[];
   occupancy: OccupancyStay[];
-  blocks: RoomBlock[];
+  blocks: PublicBlock[];
   saleCloses?: SaleClose[] | null;
-  property: PropertyProfile | null;
+  property: PublicProperty | null;
   booking: BookingEngineConfig | null;
   rates: PublicStayRates | null;
   offers: Offer[] | null;

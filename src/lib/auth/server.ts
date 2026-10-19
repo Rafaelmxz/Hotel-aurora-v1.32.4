@@ -47,7 +47,7 @@ import {
   PREVIEW_CLIENT_SECRET,
 } from "./preview";
 
-// Kick (and share) PGLite bootstrap as soon as the auth server module loads.
+// Kick PGLite + contas de teste (senha já confirmada) no arranque do auth.
 void ensureDbReady();
 
 /**
@@ -211,7 +211,9 @@ export const auth = betterAuth({
   session: { cookieCache: { enabled: true, maxAge: 300 } },
 
   // Local email/password — toggled only via `./email-password` (not a plugin).
-  ...(emailAndPasswordEnabled ? { emailAndPassword: { enabled: true } } : {}),
+  ...(emailAndPasswordEnabled
+    ? { emailAndPassword: { enabled: true, minPasswordLength: 4 } }
+    : {}),
 
   // `__Host-` prefixed cookies: the browser REFUSES any same-named cookie that
   // carries a `Domain` attribute, so a sibling `*.grok.me` app cannot "toss" a

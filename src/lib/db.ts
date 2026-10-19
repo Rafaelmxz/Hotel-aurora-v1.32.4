@@ -222,7 +222,10 @@ export async function getPglite(): Promise<import("@electric-sql/pglite").PGlite
  */
 export function ensureDbReady(): Promise<void> {
   if (dbSource !== "pglite") return Promise.resolve();
-  return getSql().then(() => undefined);
+  return getSql().then(async () => {
+    const { seedTestAuthUsers } = await import("./auth/seed-test-users");
+    await seedTestAuthUsers();
+  });
 }
 
 // Server-only eager start: kick PGLite bootstrap as soon as this module loads in
@@ -231,9 +234,13 @@ const globalBoot = globalThis as typeof globalThis & {
   __pgBootstrapPromise__?: Promise<void>;
 };
 if (typeof window === "undefined" && dbSource === "pglite") {
-  globalBoot.__pgBootstrapPromise__ ??= ensureDbReady().catch((err) => {
+  globalBoot.__pgBootstrapPromise__ ??= getSql().then(() => undefined).catch((err) => {
     globalBoot.__pgBootstrapPromise__ = undefined;
     console.error("[db] PGLite bootstrap failed:", err);
     throw err;
+  });
+  void globalBoot.__pgBootstrapPromise__.then(async () => {
+    const { seedTestAuthUsers } = await import("./auth/seed-test-users");
+    await seedTestAuthUsers();
   });
 }

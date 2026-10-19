@@ -5,7 +5,7 @@ import {
   listAllConsumos,
   listAllPagamentos,
 } from "@/features/reservations/folioStore";
-import { replaceProperty, getProperty } from "@/features/settings/propertyStore";
+import { replaceProperty, getProperty, normalizeProperty } from "@/features/settings/propertyStore";
 import {
   replaceBookingConfig,
   getBookingConfig,
@@ -118,20 +118,31 @@ export function applyPublicStay(data: PublicStayPayload) {
   if (local?.property) {
     replaceProperty(local.property);
   } else if (data.property) {
-    replaceProperty({
-      ...data.property,
-      cancellationPolicy:
-        data.property.cancellationPolicy || data.booking?.cancellationPolicy || "",
-      checkInTime: data.property.checkInTime || data.booking?.checkInTime || "14:00",
-      checkOutTime: data.property.checkOutTime || data.booking?.checkOutTime || "12:00",
-    });
+    replaceProperty(
+      normalizeProperty({
+        ...data.property,
+        cancellationPolicy:
+          data.property.cancellationPolicy || data.booking?.cancellationPolicy || "",
+        checkInTime: data.property.checkInTime || data.booking?.checkInTime || "14:00",
+        checkOutTime: data.property.checkOutTime || data.booking?.checkOutTime || "12:00",
+      }),
+    );
   }
   if (data.booking) replaceBookingConfig(data.booking);
   if (data.rates) replaceRates(data.rates);
   if (data.offers) replaceOffers(data.offers);
   if (local?.roomTypes?.length) replaceRoomTypes(local.roomTypes);
   else if (data.roomTypes?.length) replaceRoomTypes(data.roomTypes);
-  replaceBlocks(data.blocks ?? []);
+  replaceBlocks(
+    (data.blocks ?? []).map((row, index) => ({
+      id: `pub-${index}`,
+      roomId: row.roomId,
+      checkIn: row.checkIn,
+      checkOut: row.checkOut,
+      reason: "",
+      createdAt: "",
+    })),
+  );
   if (local?.saleCloses?.length) replaceSaleCloses(local.saleCloses);
   else replaceSaleCloses(data.saleCloses ?? []);
   const stubs = data.occupancy.map(occupancyToReservation);
